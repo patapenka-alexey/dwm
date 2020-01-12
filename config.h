@@ -64,6 +64,10 @@ static const char *dmenucmd[] = { "dmenu_run", "-m", dmenumon, "-fn", dmenufont,
 static const char *termcmd[]  = { "uxterm", NULL };
 static const char *firefoxcmd[] = { "firefox", NULL};
 
+static const char **autostart[] = {
+	firefoxcmd,
+};
+
 static Key keys[] = {
 	/* modifier                     key        function        argument */
 	{ MODKEY,                       XK_p,      spawn,          {.v = dmenucmd } },
