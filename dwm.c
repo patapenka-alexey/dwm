@@ -84,6 +84,13 @@ typedef struct {
 	const Arg arg;
 } Button;
 
+typedef struct ChildNode ChildNode;
+struct ChildNode {
+	pid_t pid;
+	int exited;
+	ChildNode *next;
+};
+
 typedef struct Monitor Monitor;
 typedef struct Client Client;
 struct Client {
@@ -153,6 +160,7 @@ static void attach(Client *c);
 static void attachstack(Client *c);
 static void buttonpress(XEvent *e);
 static void checkotherwm(void);
+static void childrencleanup();
 static void cleanup(void);
 static void cleanupmon(Monitor *mon);
 static void clientmessage(XEvent *e);
@@ -267,6 +275,12 @@ static void (*handler[LASTEvent]) (XEvent *) = {
 };
 static Atom wmatom[WMLast], netatom[NetLast];
 static int running = 1;
+static ChildNode *children;
+/*
+ * with childrencleanup() call helps to avoid race
+ * condition with SIGCHLD signal handler
+ */
+static volatile int childrenneedscleanup = 0;
 static Cur *cursor[CurLast];
 static Clr **scheme;
 static Display *dpy;
@@ -493,13 +507,59 @@ checkotherwm(void)
 	XSync(dpy, False);
 }
 
+/*
+ * Helps to avoid concurrent modify of the child list
+ * by the SIGCHLD handler. But keep in mind:
+ * the signal handler may iterate through the list.
+ */
+void
+childrencleanup() {
+	ChildNode *prev, *cur;
+
+	if (!childrenneedscleanup || children == NULL)
+		return;
+
+	childrenneedscleanup = 0;
+	prev = NULL;
+	cur = children;
+	while (cur) {
+		if (cur->exited) {
+			if (prev == NULL) {
+				children = cur->next;
+				free(cur);
+				cur = children;
+			} else {
+				prev->next = cur->next;
+				free(cur);
+				cur = prev->next;
+			}
+		}
+		else
+		{
+			prev = cur;
+			cur = cur->next;
+		}
+	}
+}
+
 void
 cleanup(void)
 {
+	ChildNode *node;
 	Arg a = {.ui = ~0};
 	Layout foo = { "", NULL };
 	Monitor *m;
 	size_t i;
+	int sleeped = 0;
+
+	/* send SIGTERM to all child processes */
+	childrencleanup();
+	node = children;
+	while (node) {
+		if (!node->exited)
+			kill(node->pid, SIGTERM);
+		node = node->next;
+	}
 
 	view(&a);
 	selmon->lt[selmon->sellt] = &foo;
@@ -518,6 +578,24 @@ cleanup(void)
 	XSync(dpy, False);
 	XSetInputFocus(dpy, PointerRoot, RevertToPointerRoot, CurrentTime);
 	XDeleteProperty(dpy, root, netatom[NetActiveWindow]);
+
+	/*
+	 * simple <= 30 seconds wait for children exit, I do not need
+	 * accuracy here
+	 */
+	while (children && sleeped < 30) {
+		childrencleanup();
+		sleep(1); /* 1 second or signal catched sleep */
+		sleeped++;
+	}
+
+	/* send SIGKILL to live children */
+	while (children) {
+		kill(children->pid, SIGKILL);
+		node = children;
+		free(node);
+		children = children->next;
+	}
 }
 
 void
@@ -800,7 +878,8 @@ enternotify(XEvent *e)
 void
 execute(const char **cmd)
 {
-	if (fork() == 0) {
+	pid_t pid;
+	if ((pid = fork()) == 0) {
 		if (dpy)
 			close(ConnectionNumber(dpy));
 		setsid();
@@ -808,7 +887,13 @@ execute(const char **cmd)
 		fprintf(stderr, "dwm: execvp %s", cmd[0]);
 		perror(" failed");
 		exit(EXIT_SUCCESS);
-	}
+	} else if (pid > 0) {
+		ChildNode *new = malloc(sizeof(ChildNode));
+		new->pid = pid;
+		new->exited = 0;
+		new->next = children;
+		children = new;
+	} /* else fork fails */
 }
 
 void
@@ -1426,6 +1511,7 @@ run(void)
 			xkbevent((XkbEvent*) &ev);
 		else if (handler[ev.type])
 			handler[ev.type](&ev); /* call handler */
+		childrencleanup();
 	}
 }
 
@@ -1584,7 +1670,9 @@ setup(void)
 	XColor xcol;
 	Colormap cmap;
 
-	/* clean up any zombies immediately */
+	/* register SIGCHLD and clean up any zombies immediately */
+	if (signal(SIGCHLD, sigchld) == SIG_ERR)
+		die("can't install SIGCHLD handler:");
 	sigchld(0);
 
 	/* init screen */
@@ -1696,9 +1784,22 @@ showhide(Client *c)
 void
 sigchld(int unused)
 {
-	if (signal(SIGCHLD, sigchld) == SIG_ERR)
-		die("can't install SIGCHLD handler:");
-	while (0 < waitpid(-1, NULL, WNOHANG));
+	ChildNode *node;
+	pid_t pid;
+	int saved_errno = errno, status;
+
+	while ((pid = waitpid(-1, &status, WNOHANG)) > 0) {
+		if (WIFEXITED(status) || WIFSIGNALED(status)) {
+			for (node = children; node; node = node->next) {
+				if (pid == node->pid) {
+					node->exited = 1;
+					childrenneedscleanup = 1;
+				}
+			}
+		}
+	}
+
+	errno = saved_errno;
 }
 
 void
