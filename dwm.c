@@ -33,6 +33,8 @@
 #include <X11/cursorfont.h>
 #include <X11/keysym.h>
 #include <X11/Xatom.h>
+#include <X11/XKBlib.h>
+#include <X11/extensions/XKBrules.h>
 #include <X11/Xlib.h>
 #include <X11/Xproto.h>
 #include <X11/Xutil.h>
@@ -142,6 +144,7 @@ typedef struct {
 } Rule;
 
 /* function declarations */
+static void appendkbdlayout(char *dst);
 static void applyrules(Client *c);
 static int applysizehints(Client *c, int *x, int *y, int *w, int *h, int interact);
 static void arrange(Monitor *m);
@@ -233,6 +236,7 @@ static Monitor *wintomon(Window w);
 static int xerror(Display *dpy, XErrorEvent *ee);
 static int xerrordummy(Display *dpy, XErrorEvent *ee);
 static int xerrorstart(Display *dpy, XErrorEvent *ee);
+static void xkbevent(XkbEvent *event);
 static void zoom(const Arg *arg);
 
 /* variables */
@@ -244,6 +248,7 @@ static int bh, blw = 0;      /* bar geometry */
 static int lrpad;            /* sum of left and right padding for text */
 static int (*xerrorxlib)(Display *, XErrorEvent *);
 static unsigned int numlockmask = 0;
+static int xkbEventType = NoEventMask;
 static void (*handler[LASTEvent]) (XEvent *) = {
 	[ButtonPress] = buttonpress,
 	[ClientMessage] = clientmessage,
@@ -276,6 +281,27 @@ static Window root, wmcheckwin;
 struct NumTags { char limitexceeded[LENGTH(tags) > 31 ? -1 : 1]; };
 
 /* function implementations */
+void
+appendkbdlayout(char *dst)
+{
+	XkbRF_VarDefsRec vd;
+	XkbStateRec state;
+
+	XkbGetState(dpy, XkbUseCoreKbd, &state);
+	XkbRF_GetNamesProp(dpy, NULL, &vd);
+
+	char *tok = strtok(vd.layout, ",");
+
+	for (int i = 0; i < state.group; i++) {
+		tok = strtok(NULL, ",");
+		if (tok == NULL) {
+			dst[0] = '\0';
+			return;
+		}
+	}
+	sprintf(dst, "[%s]", tok);
+}
+
 void
 applyrules(Client *c)
 {
@@ -1378,12 +1404,15 @@ run(void)
 	/* autostart */
 	for (i = 0; i < LENGTH(autostart); i++)
 		execute(autostart[i]);
-
 	/* main event loop */
 	XSync(dpy, False);
 	while (running && !XNextEvent(dpy, &ev))
-		if (handler[ev.type])
+	{
+		if (xkbEventType != NoEventMask && ev.type == xkbEventType)
+			xkbevent((XkbEvent*) &ev);
+		else if (handler[ev.type])
 			handler[ev.type](&ev); /* call handler */
+	}
 }
 
 void
@@ -1608,6 +1637,12 @@ setup(void)
 		|LeaveWindowMask|StructureNotifyMask|PropertyChangeMask;
 	XChangeWindowAttributes(dpy, root, CWEventMask|CWCursor, &wa);
 	XSelectInput(dpy, root, wa.event_mask);
+	/* select xkb events */
+	if (XkbQueryExtension(dpy, 0, &xkbEventType, 0, 0, 0)) {
+		XkbSelectEvents(dpy, XkbUseCoreKbd, XkbStateNotifyMask, XkbStateNotifyMask);
+	} else {
+		xkbEventType = NoEventMask;
+	}
 	grabkeys();
 	focus(NULL);
 }
@@ -2009,8 +2044,13 @@ updatesizehints(Client *c)
 void
 updatestatus(void)
 {
-	if (!gettextprop(root, XA_WM_NAME, stext, sizeof(stext)))
-		strcpy(stext, "dwm-"VERSION);
+	int layout_len;
+
+	appendkbdlayout(stext);
+	layout_len = strlen(stext);
+
+	if (!gettextprop(root, XA_WM_NAME, stext + layout_len, sizeof(stext) - layout_len))
+		strcpy(stext + layout_len, "dwm-"VERSION);
 	drawbar(selmon);
 }
 
@@ -2130,6 +2170,20 @@ xerrorstart(Display *dpy, XErrorEvent *ee)
 {
 	die("dwm: another window manager is already running");
 	return -1;
+}
+
+void
+xkbevent(XkbEvent *event)
+{
+	static int lang = 0;
+	/*
+	 * assert(event->->any.xkb_type == XkbStateNotify) because
+	 * only that event mask enabled
+	 */
+	if (lang != event->state.group) {
+		lang = event->state.group;
+		updatestatus();
+	}
 }
 
 void
