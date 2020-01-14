@@ -61,7 +61,7 @@
 
 /* enums */
 enum { CurNormal, CurResize, CurMove, CurLast }; /* cursor */
-enum { SchemeNorm, SchemeSel }; /* color schemes */
+enum { SchemeNorm, SchemeSel, SchemeOut, SchemeLast }; /* color schemes */
 enum { NetSupported, NetWMName, NetWMState, NetWMCheck,
        NetWMFullscreen, NetActiveWindow, NetWMWindowType,
        NetWMWindowTypeDialog, NetClientList, NetLast }; /* EWMH atoms */
@@ -289,6 +289,7 @@ static Monitor *mons, *selmon;
 static Window root, wmcheckwin;
 
 /* configuration, allows nested code to access above variables */
+#include "appearance.h"
 #include "config.h"
 
 /* compile-time check if all tags fit into an unsigned int bit array. */

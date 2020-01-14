@@ -53,7 +53,7 @@ static XIC xic;
 static Drw *drw;
 static Clr *scheme[SchemeLast];
 
-#include "dmenu.h"
+#include "appearance.h"
 
 static int (*fstrncmp)(const char *, const char *, size_t) = strncmp;
 static char *(*fstrstr)(const char *, const char *) = strstr;
@@ -76,16 +76,16 @@ calcoffsets(void)
 {
 	int i, n;
 
-	if (lines > 0)
-		n = lines * bh;
+	if (menulines > 0)
+		n = menulines * bh;
 	else
 		n = mw - (promptw + inputw + TEXTW("<") + TEXTW(">"));
 	/* calculate which items will begin the next page and previous page */
 	for (i = 0, next = curr; next; next = next->right)
-		if ((i += (lines > 0) ? bh : MIN(TEXTW(next->text), n)) > n)
+		if ((i += (menulines > 0) ? bh : MIN(TEXTW(next->text), n)) > n)
 			break;
 	for (i = 0, prev = curr; prev && prev->left; prev = prev->left)
-		if ((i += (lines > 0) ? bh : MIN(TEXTW(prev->left->text), n)) > n)
+		if ((i += (menulines > 0) ? bh : MIN(TEXTW(prev->left->text), n)) > n)
 			break;
 }
 
@@ -136,12 +136,12 @@ drawmenu(void)
 	drw_setscheme(drw, scheme[SchemeNorm]);
 	drw_rect(drw, 0, 0, mw, mh, 1, 1);
 
-	if (prompt && *prompt) {
+	if (menuprompt && *menuprompt) {
 		drw_setscheme(drw, scheme[SchemeSel]);
-		x = drw_text(drw, x, 0, promptw, bh, lrpad / 2, prompt, 0);
+		x = drw_text(drw, x, 0, promptw, bh, lrpad / 2, menuprompt, 0);
 	}
 	/* draw input field */
-	w = (lines > 0 || !matches) ? mw - x : inputw;
+	w = (menulines > 0 || !matches) ? mw - x : inputw;
 	drw_setscheme(drw, scheme[SchemeNorm]);
 	drw_text(drw, x, 0, w, bh, lrpad / 2, text, 0);
 
@@ -151,7 +151,7 @@ drawmenu(void)
 		drw_rect(drw, x + curpos, 2, 2, bh - 4, 1, 0);
 	}
 
-	if (lines > 0) {
+	if (menulines > 0) {
 		/* draw vertical list */
 		for (item = curr; item != next; item = item->right)
 			drawitem(item, x, y += bh, mw - x);
@@ -292,14 +292,14 @@ static void
 movewordedge(int dir)
 {
 	if (dir < 0) { /* move cursor to the start of the word*/
-		while (cursor > 0 && strchr(worddelimiters, text[nextrune(-1)]))
+		while (cursor > 0 && strchr(menuworddelimiters, text[nextrune(-1)]))
 			cursor = nextrune(-1);
-		while (cursor > 0 && !strchr(worddelimiters, text[nextrune(-1)]))
+		while (cursor > 0 && !strchr(menuworddelimiters, text[nextrune(-1)]))
 			cursor = nextrune(-1);
 	} else { /* move cursor to the end of the word */
-		while (text[cursor] && strchr(worddelimiters, text[cursor]))
+		while (text[cursor] && strchr(menuworddelimiters, text[cursor]))
 			cursor = nextrune(+1);
-		while (text[cursor] && !strchr(worddelimiters, text[cursor]))
+		while (text[cursor] && !strchr(menuworddelimiters, text[cursor]))
 			cursor = nextrune(+1);
 	}
 }
@@ -349,9 +349,9 @@ keypress(XKeyEvent *ev)
 			insert(NULL, 0 - cursor);
 			break;
 		case XK_w: /* delete word */
-			while (cursor > 0 && strchr(worddelimiters, text[nextrune(-1)]))
+			while (cursor > 0 && strchr(menuworddelimiters, text[nextrune(-1)]))
 				insert(NULL, nextrune(-1) - cursor);
-			while (cursor > 0 && !strchr(worddelimiters, text[nextrune(-1)]))
+			while (cursor > 0 && !strchr(menuworddelimiters, text[nextrune(-1)]))
 				insert(NULL, nextrune(-1) - cursor);
 			break;
 		case XK_y: /* paste selection */
@@ -437,11 +437,11 @@ insert:
 		calcoffsets();
 		break;
 	case XK_Left:
-		if (cursor > 0 && (!sel || !sel->left || lines > 0)) {
+		if (cursor > 0 && (!sel || !sel->left || menulines > 0)) {
 			cursor = nextrune(-1);
 			break;
 		}
-		if (lines > 0)
+		if (menulines > 0)
 			return;
 		/* fallthrough */
 	case XK_Up:
@@ -477,7 +477,7 @@ insert:
 			cursor = nextrune(+1);
 			break;
 		}
-		if (lines > 0)
+		if (menulines > 0)
 			return;
 		/* fallthrough */
 	case XK_Down:
@@ -544,7 +544,7 @@ readstdin(void)
 	if (items)
 		items[i].text = NULL;
 	inputw = items ? TEXTW(items[imax].text) : 0;
-	lines = MIN(lines, i);
+	menulines = MIN(menulines, i);
 }
 
 static void
@@ -609,8 +609,8 @@ setup(void)
 
 	/* calculate menu geometry */
 	bh = drw->fonts->h + 2;
-	lines = MAX(lines, 0);
-	mh = (lines + 1) * bh;
+	menulines = MAX(menulines, 0);
+	mh = (menulines + 1) * bh;
 #ifdef XINERAMA
 	i = 0;
 	if (parentwin == root && (info = XineramaQueryScreens(dpy, &n))) {
@@ -638,7 +638,7 @@ setup(void)
 					break;
 
 		x = info[i].x_org;
-		y = info[i].y_org + (topbar ? 0 : info[i].height - mh);
+		y = info[i].y_org + (topmenu ? 0 : info[i].height - mh);
 		mw = info[i].width;
 		XFree(info);
 	} else
@@ -648,10 +648,10 @@ setup(void)
 			die("could not get embedding window attributes: 0x%lx",
 			    parentwin);
 		x = 0;
-		y = topbar ? 0 : wa.height - mh;
+		y = topmenu ? 0 : wa.height - mh;
 		mw = wa.width;
 	}
-	promptw = (prompt && *prompt) ? TEXTW(prompt) - lrpad / 4 : 0;
+	promptw = (menuprompt && *menuprompt) ? TEXTW(menuprompt) - lrpad / 4 : 0;
 	inputw = MIN(inputw, mw/3);
 	match();
 
@@ -705,9 +705,7 @@ main(int argc, char *argv[])
 		if (!strcmp(argv[i], "-v")) {      /* prints version information */
 			puts("dmenu-"VERSION);
 			exit(0);
-		} else if (!strcmp(argv[i], "-b")) /* appears at the bottom of the screen */
-			topbar = 0;
-		else if (!strcmp(argv[i], "-f"))   /* grabs keyboard before reading stdin */
+		} else if (!strcmp(argv[i], "-f"))   /* grabs keyboard before reading stdin */
 			fast = 1;
 		else if (!strcmp(argv[i], "-i")) { /* case-insensitive item matching */
 			fstrncmp = strncasecmp;
@@ -716,11 +714,11 @@ main(int argc, char *argv[])
 			usage();
 		/* these options take one argument */
 		else if (!strcmp(argv[i], "-l"))   /* number of lines in vertical list */
-			lines = atoi(argv[++i]);
+			menulines = atoi(argv[++i]);
 		else if (!strcmp(argv[i], "-m"))
 			mon = atoi(argv[++i]);
 		else if (!strcmp(argv[i], "-p"))   /* adds prompt to left of input field */
-			prompt = argv[++i];
+			menuprompt = argv[++i];
 		else if (!strcmp(argv[i], "-fn"))  /* font or font set */
 			fonts[0] = argv[++i];
 		else if (!strcmp(argv[i], "-nb"))  /* normal background color */
