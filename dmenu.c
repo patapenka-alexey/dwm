@@ -1,5 +1,7 @@
 /* See LICENSE file for copyright and license details. */
 #include <ctype.h>
+#include <dirent.h>
+#include <limits.h>
 #include <locale.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -7,6 +9,8 @@
 #include <strings.h>
 #include <time.h>
 #include <unistd.h>
+
+#include <sys/stat.h>
 
 #include <X11/Xlib.h>
 #include <X11/Xatom.h>
@@ -518,24 +522,95 @@ paste(void)
 	drawmenu();
 }
 
+/* TODO: temporary */
+#define EXECLISTBASE 1024
+static char **execlist = NULL;
+static int execlistsz = 0;
+static int execlistlen = 0;
+
+static int
+execcmp(const void *l, const void *r) {
+	const char* ll = *(const char**)l;
+	const char* rr = *(const char**)r;
+	return strcmp(ll,rr);
+}
+
+static void
+addexec(char *execname) {
+	if (execlistlen == execlistsz) {
+		if (execlistsz == 0) {
+			execlistsz = EXECLISTBASE;
+			execlist = (char**) malloc(sizeof(char*) * execlistsz);
+		} else {
+			execlistsz += EXECLISTBASE;
+			execlist = (char**) realloc(execlist, sizeof(char*) * execlistsz);
+		}
+	}
+	execlist[execlistlen++] = strdup(execname);
+}
+
+static void
+addallexec(char *basepath) {
+	char path[PATH_MAX];
+	DIR *dir;
+	struct dirent *d;
+	struct stat st;
+
+	if ((dir = opendir(basepath))) {
+		while ((d = readdir(dir))) {
+			if (snprintf(path, PATH_MAX, "%s/%s", basepath, d->d_name) > 0) {
+				if (!stat(path, &st)
+					&& S_ISREG(st.st_mode)
+					&& access(path, X_OK) == 0) {
+					addexec(d->d_name);
+				}
+			}
+		}
+		closedir(dir);
+	}
+}
+
+static void
+addallexecpath() {
+	char *path;
+	if ((path = getenv("PATH")) != NULL) {
+		char *duppath = strdup(path),
+			 *curpath = duppath,
+			 *endpath;
+		do {
+			endpath = strchr(curpath, ':');
+			if (endpath)
+				*endpath = '\0';
+			addallexec(curpath);
+			curpath = endpath + 1;
+		} while (endpath);
+		free(duppath);
+
+		qsort(execlist, execlistlen, sizeof(char*), execcmp);
+	}
+}
+/* TODO: temporary end */
+
 static void
 readstdin(void)
 {
-	char buf[sizeof text], *p;
+	char *p;
 	size_t i, imax = 0, size = 0;
 	unsigned int tmpmax = 0;
 
+	addallexecpath();
+
 	/* read each line from stdin and add it to the item list */
-	for (i = 0; fgets(buf, sizeof buf, stdin); i++) {
+	for (i = 0; i < execlistlen; i++) {
 		if (i + 1 >= size / sizeof *items)
 			if (!(items = realloc(items, (size += BUFSIZ))))
 				die("cannot realloc %u bytes:", size);
-		if ((p = strchr(buf, '\n')))
+		if ((p = strchr(execlist[i], '\n')))
 			*p = '\0';
-		if (!(items[i].text = strdup(buf)))
-			die("cannot strdup %u bytes:", strlen(buf) + 1);
+		if (!(items[i].text = execlist[i]))
+			die("cannot strdup %u bytes:", strlen(execlist[i]) + 1);
 		items[i].out = 0;
-		drw_font_getexts(drw->fonts, buf, strlen(buf), &tmpmax, NULL);
+		drw_font_getexts(drw->fonts, execlist[i], strlen(execlist[i]), &tmpmax, NULL);
 		if (tmpmax > inputw) {
 			inputw = tmpmax;
 			imax = i;

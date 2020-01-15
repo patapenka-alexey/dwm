@@ -3,10 +3,10 @@
 
 include config.mk
 
-SRC = drw.c dmenu.c dwm.c stest.c util.c
+SRC = drw.c dmenu.c dwm.c util.c
 OBJ = ${SRC:.c=.o}
 
-all: options dmenu dwm stest
+all: options dmenu dwm
 
 options:
 	@echo dwm build options:
@@ -25,28 +25,21 @@ dmenu: dmenu.o drw.o util.o
 dwm: ${OBJ}
 	${CC} -o $@ dwm.o drw.o util.o ${LDFLAGS}
 
-stest: stest.o
-	$(CC) -o $@ stest.o $(LDFLAGS)
-
 clean:
 	rm -f dmenu dwm stest ${OBJ}
 
 install: all
 	mkdir -p ${DESTDIR}${PREFIX}/bin
-	cp -f dmenu dmenu_path dmenu_run dwm stest dwm_clock.sh ${DESTDIR}${PREFIX}/bin
+	cp -f dmenu dmenu_run dwm dwm_clock.sh ${DESTDIR}${PREFIX}/bin
 	chmod 755 $(DESTDIR)$(PREFIX)/bin/dmenu
-	chmod 755 $(DESTDIR)$(PREFIX)/bin/dmenu_path
 	chmod 755 $(DESTDIR)$(PREFIX)/bin/dmenu_run
 	chmod 755 ${DESTDIR}${PREFIX}/bin/dwm
 	chmod 755 ${DESTDIR}${PREFIX}/bin/dwm_clock.sh
-	chmod 755 $(DESTDIR)$(PREFIX)/bin/stest
 
 uninstall:
 	rm -f $(DESTDIR)$(PREFIX)/bin/dmenu\
 		${DESTDIR}${PREFIX}/bin/dwm\
-		$(DESTDIR)$(PREFIX)/bin/dmenu_path\
 		$(DESTDIR)$(PREFIX)/bin/dmenu_run\
-		$(DESTDIR)$(PREFIX)/bin/dwm_clock.sh\
-		$(DESTDIR)$(PREFIX)/bin/stest
+		$(DESTDIR)$(PREFIX)/bin/dwm_clock.sh
 
 .PHONY: all options clean dist install uninstall
