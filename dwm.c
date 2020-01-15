@@ -28,6 +28,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
+#include <pthread.h>
 #include <sys/types.h>
 #include <sys/wait.h>
 #include <X11/cursorfont.h>
@@ -151,7 +152,6 @@ typedef struct {
 } Rule;
 
 /* function declarations */
-static void appendkbdlayout(char *dst);
 static void applyrules(Client *c);
 static int applysizehints(Client *c, int *x, int *y, int *w, int *h, int interact);
 static void arrange(Monitor *m);
@@ -164,6 +164,7 @@ static void childrencleanup();
 static void cleanup(void);
 static void cleanupmon(Monitor *mon);
 static void clientmessage(XEvent *e);
+static void* clockthreadfunc(void *arg);
 static void configure(Client *c);
 static void configurenotify(XEvent *e);
 static void configurerequest(XEvent *e);
@@ -232,6 +233,7 @@ static void updatebarpos(Monitor *m);
 static void updatebars(void);
 static void updateclientlist(void);
 static int updategeom(void);
+static void updatekbdlayout(void);
 static void updatenumlockmask(void);
 static void updatesizehints(Client *c);
 static void updatestatus(void);
@@ -250,6 +252,7 @@ static void zoom(const Arg *arg);
 /* variables */
 static const char broken[] = "broken";
 static char stext[256];
+static char layout[256] = {'0', };
 static int screen;
 static int sw, sh;           /* X display screen geometry width, height */
 static int bh, blw = 0;      /* bar geometry */
@@ -274,7 +277,7 @@ static void (*handler[LASTEvent]) (XEvent *) = {
 	[UnmapNotify] = unmapnotify
 };
 static Atom wmatom[WMLast], netatom[NetLast];
-static int running = 1;
+static volatile int running = 1;
 static ChildNode *children;
 /*
  * with childrencleanup() call helps to avoid race
@@ -296,27 +299,6 @@ static Window root, wmcheckwin;
 struct NumTags { char limitexceeded[LENGTH(tags) > 31 ? -1 : 1]; };
 
 /* function implementations */
-void
-appendkbdlayout(char *dst)
-{
-	XkbRF_VarDefsRec vd;
-	XkbStateRec state;
-
-	XkbGetState(dpy, XkbUseCoreKbd, &state);
-	XkbRF_GetNamesProp(dpy, NULL, &vd);
-
-	char *tok = strtok(vd.layout, ",");
-
-	for (int i = 0; i < state.group; i++) {
-		tok = strtok(NULL, ",");
-		if (tok == NULL) {
-			dst[0] = '\0';
-			return;
-		}
-	}
-	sprintf(dst, "[%s]", tok);
-}
-
 void
 applyrules(Client *c)
 {
@@ -632,6 +614,31 @@ clientmessage(XEvent *e)
 		if (c != selmon->sel && !c->isurgent)
 			seturgent(c, 1);
 	}
+}
+
+/*
+ * TODO: a better synchranization, but at now too many global variables
+ * and it have no sence
+ */
+void*
+clockthreadfunc(void *arg)
+{
+	Display *display = (Display*) arg;
+	time_t now;
+
+	pthread_setcanceltype(PTHREAD_CANCEL_ASYNCHRONOUS, NULL);
+	do {
+		/* sleep for until next minute starts */
+		now = time(NULL);
+		sleep(60 - (now % 60));
+		if (!running)
+			break;
+
+		XLockDisplay(display);
+		updatestatus();
+		XUnlockDisplay(display);
+	} while (running);
+	return NULL;
 }
 
 void
@@ -1501,18 +1508,25 @@ run(void)
 {
 	XEvent ev;
 	int i;
+
 	/* autostart */
 	for (i = 0; i < LENGTH(autostart); i++)
 		execute(autostart[i]);
-	/* main event loop */
+
 	XSync(dpy, False);
+	updatekbdlayout();
+	updatestatus();
+
+	/* main event loop */
 	while (running && !XNextEvent(dpy, &ev))
 	{
+		XLockDisplay(dpy);
 		if (xkbEventType != NoEventMask && ev.type == xkbEventType)
 			xkbevent((XkbEvent*) &ev);
 		else if (handler[ev.type])
 			handler[ev.type](&ev); /* call handler */
 		childrencleanup();
+		XUnlockDisplay(dpy);
 	}
 }
 
@@ -2085,6 +2099,28 @@ updategeom(void)
 }
 
 void
+updatekbdlayout()
+{
+	XkbRF_VarDefsRec vd;
+	XkbStateRec state;
+
+	layout[0] ='\0';
+
+	XkbGetState(dpy, XkbUseCoreKbd, &state);
+	XkbRF_GetNamesProp(dpy, NULL, &vd);
+
+	char *tok = strtok(vd.layout, ",");
+	for (int i = 0; i < state.group; i++) {
+		tok = strtok(NULL, ",");
+		if (tok == NULL) {
+			layout[0] = '\0';
+			return;
+		}
+	}
+	sprintf(layout, "[%s]", tok);
+}
+
+void
 updatenumlockmask(void)
 {
 	unsigned int i, j;
@@ -2146,13 +2182,12 @@ updatesizehints(Client *c)
 void
 updatestatus(void)
 {
-	int layout_len;
+	time_t now;
+	struct tm *tm;
 
-	appendkbdlayout(stext);
-	layout_len = strlen(stext);
-
-	if (!gettextprop(root, XA_WM_NAME, stext + layout_len, sizeof(stext) - layout_len))
-		strcpy(stext + layout_len, "dwm-"VERSION);
+	now = time(NULL);
+	tm = localtime(&now);
+	sprintf(stext, "%s%02d:%02d", layout, tm->tm_hour, tm->tm_min);
 	drawbar(selmon);
 }
 
@@ -2284,6 +2319,7 @@ xkbevent(XkbEvent *event)
 	 */
 	if (lang != event->state.group) {
 		lang = event->state.group;
+		updatekbdlayout();
 		updatestatus();
 	}
 }
@@ -2305,12 +2341,16 @@ zoom(const Arg *arg)
 int
 main(int argc, char *argv[])
 {
+	pthread_t clockthread;
+
 	if (argc == 2 && !strcmp("-v", argv[1]))
 		die("dwm-"VERSION);
 	else if (argc != 1)
 		die("usage: dwm [-v]");
 	if (!setlocale(LC_CTYPE, "") || !XSupportsLocale())
 		fputs("warning: no locale support\n", stderr);
+	if(XInitThreads() == 0)
+		die("unable to initialize Xorg thread support");
 	if (!(dpy = XOpenDisplay(NULL)))
 		die("dwm: cannot open display");
 	checkotherwm();
@@ -2320,7 +2360,15 @@ main(int argc, char *argv[])
 		die("pledge");
 #endif /* __OpenBSD__ */
 	scan();
+	pthread_create(&clockthread, NULL, clockthreadfunc, (void*) dpy);
+
 	run();
+
+	XLockDisplay(dpy);
+	pthread_cancel(clockthread);
+	XLockDisplay(dpy);
+	pthread_join(clockthread, NULL);
+
 	cleanup();
 	XCloseDisplay(dpy);
 	return EXIT_SUCCESS;

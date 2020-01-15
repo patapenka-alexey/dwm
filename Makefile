@@ -30,16 +30,14 @@ clean:
 
 install: all
 	mkdir -p ${DESTDIR}${PREFIX}/bin
-	cp -f dmenu dmenu_run dwm dwm_clock.sh ${DESTDIR}${PREFIX}/bin
+	cp -f dmenu dmenu_run dwm ${DESTDIR}${PREFIX}/bin
 	chmod 755 $(DESTDIR)$(PREFIX)/bin/dmenu
 	chmod 755 $(DESTDIR)$(PREFIX)/bin/dmenu_run
 	chmod 755 ${DESTDIR}${PREFIX}/bin/dwm
-	chmod 755 ${DESTDIR}${PREFIX}/bin/dwm_clock.sh
 
 uninstall:
 	rm -f $(DESTDIR)$(PREFIX)/bin/dmenu\
 		${DESTDIR}${PREFIX}/bin/dwm\
-		$(DESTDIR)$(PREFIX)/bin/dmenu_run\
-		$(DESTDIR)$(PREFIX)/bin/dwm_clock.sh
+		$(DESTDIR)$(PREFIX)/bin/dmenu_run
 
 .PHONY: all options clean dist install uninstall

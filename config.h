@@ -43,10 +43,8 @@ static char dmenumon[2] = "0"; /* component of dmenucmd, manipulated in spawn() 
 static const char *dmenucmd[] = { "dmenu_run", "-m", dmenumon, NULL };
 static const char *termcmd[]  = { "uxterm", NULL };
 static const char *firefoxcmd[] = { "firefox", NULL};
-static const char *dwm_clockcmd[] = { "dwm_clock.sh", NULL};
 
 static const char **autostart[] = {
-	dwm_clockcmd,
 	firefoxcmd,
 };
 
