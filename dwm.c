@@ -173,6 +173,7 @@ static void destroynotify(XEvent *e);
 static void detach(Client *c);
 static void detachstack(Client *c);
 static Monitor *dirtomon(int dir);
+static void dmenurun(const Arg *arg);
 static void drawbar(Monitor *m);
 static void drawbars(void);
 static void enternotify(XEvent *e);
@@ -803,6 +804,62 @@ dirtomon(int dir)
 	else
 		for (m = mons; m->next != selmon; m = m->next);
 	return m;
+}
+
+void
+dmenurun(const Arg *arg)
+{
+	static char* dmenucmd[] = {"dmenu", NULL};
+	int ppair[2];
+	pid_t pid;
+
+	if (pipe(ppair) == -1)
+		fprintf(stderr, "unable create pipe.");
+
+	if ((pid = fork()) == 0) {
+		dup2(ppair[1], STDOUT_FILENO);
+		close(ppair[0]);
+		close(ppair[1]);
+		execvp(dmenucmd[0], dmenucmd);
+		perror("failure");
+		exit(EXIT_SUCCESS);
+	} else if (pid > 0) {
+		int readed, saved = 0, argvn = 0;
+		char readbuf[256], *str, **argv = NULL;
+
+		close(ppair[1]);
+
+		while ((readed = read(ppair[0], &readbuf[saved], 255 - saved)) > 0) {
+			saved += readed;
+			if (saved == 255)
+				break;
+		}
+		readbuf[saved] = '\0';
+		close(ppair[0]);
+
+		if ((str = strchr(readbuf, '\n')))
+			*str = '\0';
+
+		if (strlen(readbuf) == 0)
+			return;
+
+		for (str = strtok(readbuf, " ");
+			 str;
+			 argv[argvn - 1] = str, str = strtok(NULL, " ")) {
+			argv = realloc(argv, (++argvn + 1) * sizeof(char*));
+			if (argv == NULL) {
+				die("cannot realloc %u bytes:", (argvn + 1) * sizeof(char*));
+			}
+		}
+		if (argvn == 0)
+			return;
+
+		argv[argvn] = NULL;
+		execute((const char**) argv);
+		free(argv);
+	} else {
+		fprintf(stderr, "unable create process for dmenu");
+	}
 }
 
 void
@@ -1820,8 +1877,6 @@ sigchld(int unused)
 void
 spawn(const Arg *arg)
 {
-	if (arg->v == dmenucmd)
-		dmenumon[0] = '0' + selmon->num;
 	execute((const char **) arg->v);
 }
 

@@ -30,14 +30,12 @@ clean:
 
 install: all
 	mkdir -p ${DESTDIR}${PREFIX}/bin
-	cp -f dmenu dmenu_run dwm ${DESTDIR}${PREFIX}/bin
+	cp -f dmenu dwm ${DESTDIR}${PREFIX}/bin
 	chmod 755 $(DESTDIR)$(PREFIX)/bin/dmenu
-	chmod 755 $(DESTDIR)$(PREFIX)/bin/dmenu_run
 	chmod 755 ${DESTDIR}${PREFIX}/bin/dwm
 
 uninstall:
 	rm -f $(DESTDIR)$(PREFIX)/bin/dmenu\
-		${DESTDIR}${PREFIX}/bin/dwm\
-		$(DESTDIR)$(PREFIX)/bin/dmenu_run
+		${DESTDIR}${PREFIX}/bin/dwm
 
 .PHONY: all options clean dist install uninstall
