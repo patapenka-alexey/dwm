@@ -660,7 +660,7 @@ run(void)
 static void
 setup(void)
 {
-	int x, y, i, j;
+	int i, j;
 	unsigned int du;
 	XSetWindowAttributes swa;
 	XIM xim;
@@ -684,8 +684,7 @@ setup(void)
 	if (!XGetWindowAttributes(dpy, parentwin, &wa))
 		die("could not get embedding window attributes: 0x%lx",
 			parentwin);
-	x = 0;
-	y = topmenu ? 0 : wa.height - mh;
+
 	mw = wa.width;
 
 	promptw = (menuprompt && *menuprompt) ? TEXTW(menuprompt) - lrpad / 4 : 0;
@@ -696,7 +695,7 @@ setup(void)
 	swa.override_redirect = True;
 	swa.background_pixel = scheme[SchemeNorm][ColBg].pixel;
 	swa.event_mask = ExposureMask | KeyPressMask | VisibilityChangeMask;
-	win = XCreateWindow(dpy, parentwin, x, y, mw, mh, 0,
+	win = XCreateWindow(dpy, parentwin, 0, 0, mw, mh, 0,
 	                    CopyFromParent, CopyFromParent, CopyFromParent,
 	                    CWOverrideRedirect | CWBackPixel | CWEventMask, &swa);
 	XSetClassHint(dpy, win, &ch);
