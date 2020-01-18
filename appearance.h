@@ -5,8 +5,6 @@ static const unsigned int borderpx  = 1;        /* border pixel of windows */
 static const unsigned int snap      = 32;       /* snap pixel */
 static const int showbar            = 1;        /* 0 means no bar */
 static const int topbar             = 1;        /* 0 means bottom bar */
-/* if nonzero, menu uses vertical list with given number of lines */
-static unsigned int menulines       = 0;
 /* prompt to the left of input field */
 static const char *menuprompt       = NULL;
 /*

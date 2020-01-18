@@ -77,16 +77,13 @@ calcoffsets(void)
 {
 	int i, n;
 
-	if (menulines > 0)
-		n = menulines * bh;
-	else
-		n = mw - (promptw + inputw + TEXTW("<") + TEXTW(">"));
+	n = mw - (promptw + inputw + TEXTW("<") + TEXTW(">"));
 	/* calculate which items will begin the next page and previous page */
 	for (i = 0, next = curr; next; next = next->right)
-		if ((i += (menulines > 0) ? bh : MIN(TEXTW(next->text), n)) > n)
+		if ((i += MIN(TEXTW(next->text), n)) > n)
 			break;
 	for (i = 0, prev = curr; prev && prev->left; prev = prev->left)
-		if ((i += (menulines > 0) ? bh : MIN(TEXTW(prev->left->text), n)) > n)
+		if ((i += MIN(TEXTW(prev->left->text), n)) > n)
 			break;
 }
 
@@ -132,7 +129,7 @@ drawmenu(void)
 {
 	unsigned int curpos;
 	struct item *item;
-	int x = 0, y = 0, w;
+	int x = 0, w;
 
 	drw_setscheme(drw, scheme[SchemeNorm]);
 	drw_rect(drw, 0, 0, mw, mh, 1, 1);
@@ -142,7 +139,7 @@ drawmenu(void)
 		x = drw_text(drw, x, 0, promptw, bh, lrpad / 2, menuprompt, 0);
 	}
 	/* draw input field */
-	w = (menulines > 0 || !matches) ? mw - x : inputw;
+	w = !matches ? mw - x : inputw;
 	drw_setscheme(drw, scheme[SchemeNorm]);
 	drw_text(drw, x, 0, w, bh, lrpad / 2, text, 0);
 
@@ -152,11 +149,7 @@ drawmenu(void)
 		drw_rect(drw, x + curpos, 2, 2, bh - 4, 1, 0);
 	}
 
-	if (menulines > 0) {
-		/* draw vertical list */
-		for (item = curr; item != next; item = item->right)
-			drawitem(item, x, y += bh, mw - x);
-	} else if (matches) {
+	if (matches) {
 		/* draw horizontal list */
 		x += inputw;
 		w = TEXTW("<");
@@ -438,12 +431,10 @@ insert:
 		calcoffsets();
 		break;
 	case XK_Left:
-		if (cursor > 0 && (!sel || !sel->left || menulines > 0)) {
+		if (cursor > 0 && (!sel || !sel->left)) {
 			cursor = nextrune(-1);
 			break;
 		}
-		if (menulines > 0)
-			return;
 		/* fallthrough */
 	case XK_Up:
 		if (sel && sel->left && (sel = sel->left)->right == curr) {
@@ -478,8 +469,6 @@ insert:
 			cursor = nextrune(+1);
 			break;
 		}
-		if (menulines > 0)
-			return;
 		/* fallthrough */
 	case XK_Down:
 		if (sel && sel->right && (sel = sel->right) == next) {
@@ -616,7 +605,6 @@ readstdin(void)
 	if (items)
 		items[i].text = NULL;
 	inputw = items ? TEXTW(items[imax].text) : 0;
-	menulines = MIN(menulines, i);
 }
 
 static void
@@ -677,8 +665,7 @@ setup(void)
 
 	/* calculate menu geometry */
 	bh = drw->fonts->h + 2;
-	menulines = MAX(menulines, 0);
-	mh = (menulines + 1) * bh;
+	mh = bh;
 
 
 	if (!XGetWindowAttributes(dpy, parentwin, &wa))
@@ -749,8 +736,6 @@ main(int argc, char *argv[])
 		} else if (i + 1 == argc)
 			usage();
 		/* these options take one argument */
-		else if (!strcmp(argv[i], "-l"))   /* number of lines in vertical list */
-			menulines = atoi(argv[++i]);
 		else if (!strcmp(argv[i], "-m"))
 			mon = atoi(argv[++i]);
 		else if (!strcmp(argv[i], "-p"))   /* adds prompt to left of input field */
