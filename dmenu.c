@@ -50,7 +50,7 @@ static Display *dpy;
 static Window root, win;
 static XIC xic;
 
-static Drw *drw;
+static Drw *drw = NULL;
 static Clr *scheme[SchemeLast];
 
 #include "appearance.h"
@@ -291,7 +291,7 @@ movewordedge(int dir)
 	}
 }
 
-static void
+static char*
 keypress(XKeyEvent *ev)
 {
 	char buf[32];
@@ -302,7 +302,7 @@ keypress(XKeyEvent *ev)
 	len = XmbLookupString(xic, ev, buf, sizeof buf, &ksym, &status);
 	switch (status) {
 	default: /* XLookupNone, XBufferOverflow */
-		return;
+		return NULL;
 	case XLookupChars:
 		goto insert;
 	case XLookupKeySym:
@@ -345,7 +345,7 @@ keypress(XKeyEvent *ev)
 		case XK_Y:
 			XConvertSelection(dpy, (ev->state & ShiftMask) ? clip : XA_PRIMARY,
 			                  utf8, utf8, win, CurrentTime);
-			return;
+			return NULL;
 		case XK_Left:
 			movewordedge(-1);
 			goto draw;
@@ -356,10 +356,9 @@ keypress(XKeyEvent *ev)
 		case XK_KP_Enter:
 			break;
 		case XK_bracketleft:
-			cleanup();
-			exit(1);
+			return "";
 		default:
-			return;
+			return NULL;
 		}
 	} else if (ev->state & Mod1Mask) {
 		switch(ksym) {
@@ -376,7 +375,7 @@ keypress(XKeyEvent *ev)
 		case XK_k: ksym = XK_Prior; break;
 		case XK_l: ksym = XK_Down;  break;
 		default:
-			return;
+			return NULL;
 		}
 	}
 
@@ -388,12 +387,12 @@ insert:
 		break;
 	case XK_Delete:
 		if (text[cursor] == '\0')
-			return;
+			return NULL;
 		cursor = nextrune(+1);
 		/* fallthrough */
 	case XK_BackSpace:
 		if (cursor == 0)
-			return;
+			return NULL;
 		insert(NULL, nextrune(-1) - cursor);
 		break;
 	case XK_End:
@@ -413,8 +412,7 @@ insert:
 		sel = matchend;
 		break;
 	case XK_Escape:
-		cleanup();
-		exit(1);
+		return "";
 	case XK_Home:
 		if (sel == matches) {
 			cursor = 0;
@@ -437,26 +435,19 @@ insert:
 		break;
 	case XK_Next:
 		if (!next)
-			return;
+			return NULL;
 		sel = curr = next;
 		calcoffsets();
 		break;
 	case XK_Prior:
 		if (!prev)
-			return;
+			return NULL;
 		sel = curr = prev;
 		calcoffsets();
 		break;
 	case XK_Return:
 	case XK_KP_Enter:
-		puts((sel && !(ev->state & ShiftMask)) ? sel->text : text);
-		if (!(ev->state & ControlMask)) {
-			cleanup();
-			exit(0);
-		}
-		if (sel)
-			sel->out = 1;
-		break;
+		return (sel && !(ev->state & ShiftMask)) ? sel->text : text;
 	case XK_Right:
 		if (text[cursor] != '\0') {
 			cursor = nextrune(+1);
@@ -471,7 +462,7 @@ insert:
 		break;
 	case XK_Tab:
 		if (!sel)
-			return;
+			return NULL;
 		strncpy(text, sel->text, sizeof text - 1);
 		text[sizeof text - 1] = '\0';
 		cursor = strlen(text);
@@ -481,6 +472,7 @@ insert:
 
 draw:
 	drawmenu();
+	return NULL;
 }
 
 static void
@@ -600,10 +592,11 @@ readstdin(void)
 	inputw = items ? TEXTW(items[imax].text) : 0;
 }
 
-static void
+static char*
 run(void)
 {
 	XEvent ev;
+	char *result;
 
 	while (!XNextEvent(dpy, &ev)) {
 		if (XFilterEvent(&ev, win))
@@ -612,8 +605,7 @@ run(void)
 		case DestroyNotify:
 			if (ev.xdestroywindow.window != win)
 				break;
-			cleanup();
-			exit(1);
+			return "";
 		case Expose:
 			if (ev.xexpose.count == 0)
 				drw_map(drw, win, 0, 0, mw, mh);
@@ -624,7 +616,8 @@ run(void)
 				grabfocus();
 			break;
 		case KeyPress:
-			keypress(&ev.xkey);
+			if((result = keypress(&ev.xkey)))
+				return result;
 			break;
 		case SelectionNotify:
 			if (ev.xselection.property == utf8)
@@ -636,6 +629,7 @@ run(void)
 			break;
 		}
 	}
+	return NULL;
 }
 
 static void
@@ -677,53 +671,45 @@ setup(void)
 	drawmenu();
 }
 
-int
-main(int argc, char *argv[])
+char*
+rundmenu(Display *display, int sc, Window r)
 {
-	XWindowAttributes wa;
-	int i;
+	char *result;
 
-	for (i = 1; i < argc; i++)
-		/* these options take no arguments */
-		if (!strcmp(argv[i], "-v")) {      /* prints version information */
-			puts("dmenu-"VERSION);
-			exit(0);
-		} else if (!strcmp(argv[i], "-i")) { /* case-insensitive item matching */
-			fstrncmp = strncasecmp;
-			fstrstr = cistrstr;
-		}
-		else
-			exit(1);
+	dpy = display;
+	screen = sc;
+	root = r;
 
-	if (!setlocale(LC_CTYPE, "") || !XSupportsLocale())
-		fputs("warning: no locale support\n", stderr);
-	if (!(dpy = XOpenDisplay(NULL)))
-		die("cannot open display");
-	screen = DefaultScreen(dpy);
-	root = RootWindow(dpy, screen);
+	if (!drw) {
+		XWindowAttributes wa;
+		if (!XGetWindowAttributes(dpy, root, &wa))
+			die("could not get embedding window attributes: 0x%lx",
+				root);
+		drw = drw_create(dpy, screen, root, wa.width, wa.height);
+		if (!drw_fontset_create(drw, fonts, LENGTH(fonts)))
+			die("no fonts could be loaded.");
 
-	if (!XGetWindowAttributes(dpy, root, &wa))
-		die("could not get embedding window attributes: 0x%lx",
-			root);
-	drw = drw_create(dpy, screen, root, wa.width, wa.height);
-	if (!drw_fontset_create(drw, fonts, LENGTH(fonts)))
-		die("no fonts could be loaded.");
+		/* calculate menu geometry */
+		lrpad = drw->fonts->h;
+		mh = drw->fonts->h + 2;
+		mw = wa.width;
+		drw_resize(drw, mw, mh);
+	}
 
-	/* calculate menu geometry */
-	lrpad = drw->fonts->h;
-	mh = drw->fonts->h + 2;
-	mw = wa.width;
-	drw_resize(drw, mw, mh);
+	if (!items) {
+		readstdin();
+	}
 
-#ifdef __OpenBSD__
-	if (pledge("stdio rpath", NULL) == -1)
-		die("pledge");
-#endif
-
-	readstdin();
+	matches = matchend = NULL;
+	prev = curr = next = sel = NULL;
+	text[0] = '\0';
+	cursor = 0;
 	grabkeyboard();
 	setup();
-	run();
+	result = run();
 
-	return 1; /* unreachable */
+	XUngrabPointer(display, CurrentTime);
+	XUngrabKeyboard(display, CurrentTime);
+	XDestroyWindow(dpy, win);
+	return result;
 }

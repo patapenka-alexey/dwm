@@ -6,7 +6,7 @@ include config.mk
 SRC = drw.c dmenu.c dwm.c util.c
 OBJ = ${SRC:.c=.o}
 
-all: options dmenu dwm
+all: options dwm
 
 options:
 	@echo dwm build options:
@@ -19,23 +19,18 @@ options:
 
 ${OBJ}: config.h config.mk
 
-dmenu: dmenu.o drw.o util.o
-	$(CC) -o $@ dmenu.o drw.o util.o $(LDFLAGS)
-
 dwm: ${OBJ}
-	${CC} -o $@ dwm.o drw.o util.o ${LDFLAGS}
+	${CC} -o $@ dmenu.o dwm.o drw.o util.o ${LDFLAGS}
 
 clean:
-	rm -f dmenu dwm stest ${OBJ}
+	rm -f dwm stest ${OBJ}
 
 install: all
 	mkdir -p ${DESTDIR}${PREFIX}/bin
-	cp -f dmenu dwm ${DESTDIR}${PREFIX}/bin
-	chmod 755 $(DESTDIR)$(PREFIX)/bin/dmenu
+	cp -f dwm ${DESTDIR}${PREFIX}/bin
 	chmod 755 ${DESTDIR}${PREFIX}/bin/dwm
 
 uninstall:
-	rm -f $(DESTDIR)$(PREFIX)/bin/dmenu\
-		${DESTDIR}${PREFIX}/bin/dwm
+	rm -f ${DESTDIR}${PREFIX}/bin/dwm
 
 .PHONY: all options clean dist install uninstall

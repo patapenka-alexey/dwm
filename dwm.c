@@ -803,60 +803,43 @@ dirtomon(int dir)
 	return m;
 }
 
+char*
+rundmenu(Display *display, int sc, Window r);
+
 void
 dmenurun(const Arg *arg)
 {
-	static char* dmenucmd[] = {"dmenu", NULL};
-	int ppair[2];
-	pid_t pid;
+	int argvn = 0;
+	char *str, **argv = NULL;
+	char *result;
 
-	if (pipe(ppair) == -1)
-		fprintf(stderr, "unable create pipe.");
+	result = rundmenu(dpy, screen, root);
+	grabkeys();
+	updatestatus();
 
-	if ((pid = fork()) == 0) {
-		dup2(ppair[1], STDOUT_FILENO);
-		close(ppair[0]);
-		close(ppair[1]);
-		execvp(dmenucmd[0], dmenucmd);
-		perror("failure");
-		exit(EXIT_SUCCESS);
-	} else if (pid > 0) {
-		int readed, saved = 0, argvn = 0;
-		char readbuf[256], *str, **argv = NULL;
+	if (result == NULL)
+		return;
 
-		close(ppair[1]);
+	if ((str = strchr(result, '\n')))
+		*str = '\0';
 
-		while ((readed = read(ppair[0], &readbuf[saved], 255 - saved)) > 0) {
-			saved += readed;
-			if (saved == 255)
-				break;
+	if (strlen(result) == 0)
+		return;
+
+	for (str = strtok(result, " ");
+		 str;
+		 argv[argvn - 1] = str, str = strtok(NULL, " ")) {
+		argv = realloc(argv, (++argvn + 1) * sizeof(char*));
+		if (argv == NULL) {
+			die("cannot realloc %u bytes:", (argvn + 1) * sizeof(char*));
 		}
-		readbuf[saved] = '\0';
-		close(ppair[0]);
-
-		if ((str = strchr(readbuf, '\n')))
-			*str = '\0';
-
-		if (strlen(readbuf) == 0)
-			return;
-
-		for (str = strtok(readbuf, " ");
-			 str;
-			 argv[argvn - 1] = str, str = strtok(NULL, " ")) {
-			argv = realloc(argv, (++argvn + 1) * sizeof(char*));
-			if (argv == NULL) {
-				die("cannot realloc %u bytes:", (argvn + 1) * sizeof(char*));
-			}
-		}
-		if (argvn == 0)
-			return;
-
-		argv[argvn] = NULL;
-		execute((const char**) argv);
-		free(argv);
-	} else {
-		fprintf(stderr, "unable create process for dmenu");
 	}
+	if (argvn == 0)
+		return;
+
+	argv[argvn] = NULL;
+	execute((const char**) argv);
+	free(argv);
 }
 
 void
