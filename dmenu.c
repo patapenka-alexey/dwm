@@ -86,30 +86,6 @@ calcoffsets(void)
 			break;
 }
 
-static void
-cleanup(void)
-{
-	size_t i;
-
-	XUngrabKey(dpy, AnyKey, AnyModifier, root);
-	for (i = 0; i < SchemeLast; i++)
-		free(scheme[i]);
-	drw_free(drw);
-	XSync(dpy, False);
-	XCloseDisplay(dpy);
-}
-
-static char *
-cistrstr(const char *s, const char *sub)
-{
-	size_t len;
-
-	for (len = strlen(sub); *s; s++)
-		if (!strncasecmp(s, sub, len))
-			return (char *)s;
-	return NULL;
-}
-
 static int
 drawitem(struct item *item, int x, int y, int w)
 {
@@ -258,7 +234,7 @@ insert(const char *str, ssize_t n)
 		return;
 	/* move existing text out of the way, insert new text, and update cursor */
 	memmove(&text[cursor + n], &text[cursor], sizeof text - cursor - MAX(n, 0));
-	if (n > 0)
+	if (str != NULL && n > 0)
 		memcpy(&text[cursor], str, n);
 	cursor += n;
 	match();

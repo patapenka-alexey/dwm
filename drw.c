@@ -307,6 +307,7 @@ drw_text(Drw *drw, int x, int y, unsigned int w, unsigned int h, unsigned int lp
 		}
 
 		if (utf8strlen) {
+			ew = 0;
 			drw_font_getexts(usedfont, utf8str, utf8strlen, &ew, NULL);
 			/* shorten text if necessary */
 			for (len = MIN(utf8strlen, sizeof(buf) - 1); len && ew > w; len--)
