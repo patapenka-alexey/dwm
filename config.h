@@ -41,6 +41,7 @@ static const Layout layouts[] = {
 /* commands */
 static const char *termcmd[]  = { "urxvt", NULL };
 static const char *firefoxcmd[] = { "firefox", NULL};
+static const char *cmdprintscreen[]  = { "scrot", "/home/ozi/images/screenshots/%Y-%m-%d-%s.jpg", NULL };
 
 static const char **autostart[] = {
 	firefoxcmd,
@@ -51,6 +52,7 @@ static Key keys[] = {
 	{ MODKEY,                       XK_p,      dmenurun,       {0} },
 	{ WINKEY,                       XK_t,      spawn,          {.v = termcmd } },
 	{ WINKEY,                       XK_f,      spawn,          {.v = firefoxcmd } },
+	{ 0,                            XK_Print,  spawn,          {.v = cmdprintscreen } },
 	{ MODKEY,                       XK_b,      togglebar,      {0} },
 	{ MODKEY,                       XK_Tab,    focusstack,     {.i = +1 } },
 	{ MODKEY,                       XK_i,      incnmaster,     {.i = +1 } },
