@@ -10,7 +10,7 @@ static const Rule rules[] = {
 	 */
 	/* class      instance    title       tags mask     isfloating   monitor */
 	{ "Gimp",     NULL,       NULL,       0,            1,           -1 },
-	{ "Firefox",  NULL,       NULL,       1 << 0,       0,           -1 },
+	{ "Vivaldi",  NULL,       NULL,       2 << 0,       0,           -1 },
 };
 
 /* layout(s) */
@@ -20,13 +20,13 @@ static const int resizehints = 0;    /* 1 means respect size hints in tiled resi
 
 static const Layout layouts[] = {
 	/* symbol     arrange function */
-	{ "[M]",      monocle }, /* first entry is default */
-	{ "[]=",      tile },
+	{ "[]=",      tile }, /* first entry is default */
+	{ "[M]",      monocle },
 	{ "><>",      NULL },    /* no layout function means floating behavior */
 };
 
 /* key definitions */
-#define MODKEY Mod1Mask
+#define MODKEY Mod4Mask /* Mod1Mask */
 #define WINKEY Mod4Mask
 
 #define TAGKEYS(KEY,TAG) \
@@ -39,12 +39,12 @@ static const Layout layouts[] = {
 #define SHCMD(cmd) { .v = (const char*[]){ "/bin/sh", "-c", cmd, NULL } }
 
 /* commands */
-static const char *termcmd[]  = { "urxvt", NULL };
-static const char *firefoxcmd[] = { "firefox", NULL};
+static const char *termcmd[]  = { "gnome-terminal", NULL };
+static const char *firefoxcmd[] = { "vivaldi", NULL};
 static const char *cmdprintscreen[]  = { "scrot", "/home/ozi/images/screenshots/%Y-%m-%d-%s.jpg", NULL };
 
 static const char **autostart[] = {
-	firefoxcmd,
+	termcmd,firefoxcmd,
 };
 
 static Key keys[] = {
