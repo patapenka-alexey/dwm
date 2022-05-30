@@ -27,6 +27,8 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <threads.h>
+#include <time.h>
 #include <unistd.h>
 #include <pthread.h>
 #include <sys/types.h>
@@ -49,12 +51,14 @@
 #define CLEANMASK(mask)         (mask & ~(numlockmask|LockMask) & (ShiftMask|ControlMask|Mod1Mask|Mod2Mask|Mod3Mask|Mod4Mask|Mod5Mask))
 #define INTERSECT(x,y,w,h,m)    (MAX(0, MIN((x)+(w),(m)->wx+(m)->ww) - MAX((x),(m)->wx)) \
                                * MAX(0, MIN((y)+(h),(m)->wy+(m)->wh) - MAX((y),(m)->wy)))
-#define ISVISIBLE(C)            ((C->tags & C->mon->tagset[C->mon->seltags]))
+#define ISVISIBLE(C)            ((C->tags & C->mon->tagmask[C->mon->seltag]))
 #define LENGTH(X)               (sizeof X / sizeof X[0])
 #define MOUSEMASK               (BUTTONMASK|PointerMotionMask)
 #define WIDTH(X)                ((X)->w + 2 * (X)->bw)
 #define HEIGHT(X)               ((X)->h + 2 * (X)->bw)
 #define TAGMASK                 ((1 << LENGTH(tags)) - 1)
+#define MONTAGMASK(M)           ((M)->tagmask[(M)->seltag])
+#define MONTAG(M)               (tagmasktonum(MONTAGMASK(M)))
 #define TEXTW(X)                (drw_fontset_getwidth(drw, (X)) + lrpad)
 
 /* enums */
@@ -105,6 +109,10 @@ struct Client {
 	Monitor *mon;
 	Window win;
 };
+typedef struct {
+	cnd_t cnd;
+	mtx_t mtx;
+} clockthreadfunc_arg;
 
 typedef struct {
 	unsigned int mod;
@@ -115,29 +123,9 @@ typedef struct {
 
 typedef struct {
 	const char *symbol;
+	const unsigned int bw;
 	void (*arrange)(Monitor *);
 } Layout;
-
-struct Monitor {
-	char ltsymbol[16];
-	float mfact;
-	int nmaster;
-	int num;
-	int by;               /* bar geometry */
-	int mx, my, mw, mh;   /* screen size */
-	int wx, wy, ww, wh;   /* window area  */
-	unsigned int seltags;
-	unsigned int sellt;
-	unsigned int tagset[2];
-	int showbar;
-	int topbar;
-	Client *clients;
-	Client *sel;
-	Client *stack;
-	Monitor *next;
-	Window barwin;
-	const Layout *lt[2];
-};
 
 typedef struct {
 	const char *class;
@@ -161,7 +149,7 @@ static void childrencleanup();
 static void cleanup(void);
 static void cleanupmon(Monitor *mon);
 static void clientmessage(XEvent *e);
-static void* clockthreadfunc(void *arg);
+static int clockthreadfunc(void *arg);
 static void configure(Client *c);
 static void configurenotify(XEvent *e);
 static void configurerequest(XEvent *e);
@@ -180,6 +168,7 @@ static void focus(Client *c);
 static void focusin(XEvent *e);
 static void focusmon(const Arg *arg);
 static void focusstack(const Arg *arg);
+static Atom getatomprop(Client *c, Atom prop);
 static int getrootptr(int *x, int *y);
 static long getstate(Window w);
 static int gettextprop(Window w, Atom atom, char *text, unsigned int size);
@@ -188,6 +177,7 @@ static void grabkeys(void);
 static void incnmaster(const Arg *arg);
 static void keypress(XEvent *e);
 static void killclient(const Arg *arg);
+static void nextlayout(const Arg *arg);
 static void manage(Window w, XWindowAttributes *wa);
 static void mappingnotify(XEvent *e);
 static void maprequest(XEvent *e);
@@ -195,6 +185,7 @@ static void monocle(Monitor *m);
 static void motionnotify(XEvent *e);
 static void movemouse(const Arg *arg);
 static Client *nexttiled(Client *c);
+static unsigned int tagmasktonum(unsigned tagmask);
 static void pop(Client *);
 static void propertynotify(XEvent *e);
 static void quit(const Arg *arg);
@@ -223,7 +214,6 @@ static void tile(Monitor *);
 static void togglebar(const Arg *arg);
 static void togglefloating(const Arg *arg);
 static void toggletag(const Arg *arg);
-static void toggleview(const Arg *arg);
 static void unfocus(Client *c, int setfocus);
 static void unmanage(Client *c, int destroyed);
 static void unmapnotify(XEvent *e);
@@ -293,6 +283,27 @@ static Window root, wmcheckwin;
 #include "appearance.h"
 #include "config.h"
 
+/* depends on config */
+struct Monitor {
+	char ltsymbol[16];
+	float mfact;
+	int nmaster;
+	int num;
+	int by;               /* bar geometry */
+	int mx, my, mw, mh;   /* screen size */
+	int wx, wy, ww, wh;   /* window area  */
+	unsigned int seltag;
+	unsigned int tagmask[2];
+	int showbar;
+	int topbar;
+	Client *clients;
+	Client *sel;
+	Client *stack;
+	Monitor *next;
+	Window barwin;
+	const Layout* lts[LENGTH(tags)];
+};
+
 /* compile-time check if all tags fit into an unsigned int bit array. */
 struct NumTags { char limitexceeded[LENGTH(tags) > 31 ? -1 : 1]; };
 
@@ -330,7 +341,7 @@ applyrules(Client *c)
 		XFree(ch.res_class);
 	if (ch.res_name)
 		XFree(ch.res_name);
-	c->tags = c->tags & TAGMASK ? c->tags & TAGMASK : c->mon->tagset[c->mon->seltags];
+	c->tags = c->tags & TAGMASK ? c->tags & TAGMASK : MONTAGMASK(c->mon);
 }
 
 int
@@ -365,7 +376,9 @@ applysizehints(Client *c, int *x, int *y, int *w, int *h, int interact)
 		*h = bh;
 	if (*w < bh)
 		*w = bh;
-	if (resizehints || c->isfloating || !c->mon->lt[c->mon->sellt]->arrange) {
+
+	const int tag = MONTAG(c->mon);
+	if (resizehints || c->isfloating || !c->mon->lts[tag]->arrange) {
 		/* see last two sentences in ICCCM 4.1.2.3 */
 		baseismin = c->basew == c->minw && c->baseh == c->minh;
 		if (!baseismin) { /* temporarily remove base dimensions */
@@ -416,9 +429,10 @@ arrange(Monitor *m)
 void
 arrangemon(Monitor *m)
 {
-	strncpy(m->ltsymbol, m->lt[m->sellt]->symbol, sizeof(m->ltsymbol) - 1);
-	if (m->lt[m->sellt]->arrange)
-		m->lt[m->sellt]->arrange(m);
+	const int tag = MONTAG(m);
+	strncpy(m->ltsymbol, m->lts[tag]->symbol, sizeof(m->ltsymbol) - 1);
+	if (m->lts[tag]->arrange)
+		m->lts[tag]->arrange(m);
 }
 
 void
@@ -461,7 +475,7 @@ buttonpress(XEvent *e)
 			arg.ui = 1 << i;
 		} else if (ev->x < x + blw)
 			click = ClkLtSymbol;
-		else if (ev->x > selmon->ww - TEXTW(stext))
+		else if (ev->x > selmon->ww - (int)TEXTW(stext))
 			click = ClkStatusText;
 		else
 			click = ClkWinTitle;
@@ -528,7 +542,7 @@ cleanup(void)
 {
 	ChildNode *node;
 	Arg a = {.ui = ~0};
-	Layout foo = { "", NULL };
+	Layout foo = { "", borderpx, NULL };
 	Monitor *m;
 	size_t i;
 	int sleeped = 0;
@@ -543,7 +557,10 @@ cleanup(void)
 	}
 
 	view(&a);
-	selmon->lt[selmon->sellt] = &foo;
+	for (i = 0; i < LENGTH(tags); i++) {
+		selmon->lts[i] = &foo;
+	}
+
 	for (m = mons; m; m = m->next)
 		while (m->stack)
 			unmanage(m->stack, 0);
@@ -614,29 +631,23 @@ clientmessage(XEvent *e)
 	}
 }
 
-/*
- * TODO: a better synchranization, but at now too many global variables
- * and it have no sence
- */
-void*
+int
 clockthreadfunc(void *arg)
 {
-	Display *display = (Display*) arg;
-	time_t now;
+	clockthreadfunc_arg *func_arg = (clockthreadfunc_arg*) arg;
+	struct timespec ts;
 
-	pthread_setcanceltype(PTHREAD_CANCEL_ASYNCHRONOUS, NULL);
-	do {
-		/* sleep for until next minute starts */
-		now = time(NULL);
-		sleep(60 - (now % 60));
-		if (!running)
-			break;
-
-		XLockDisplay(display);
+	mtx_lock(&func_arg->mtx);
+	while (running) {
+		timespec_get(&ts, TIME_UTC);
+		ts.tv_sec += 60 - ts.tv_sec % 60;
+		if (cnd_timedwait(&func_arg->cnd, &func_arg->mtx, &ts) == thrd_error) {
+			die("Unable to wait in clockthread.");
+		}
 		updatestatus();
-		XUnlockDisplay(display);
-	} while (running);
-	return NULL;
+	}
+	mtx_unlock(&func_arg->mtx);
+	return 0;
 }
 
 void
@@ -693,11 +704,12 @@ configurerequest(XEvent *e)
 	Monitor *m;
 	XConfigureRequestEvent *ev = &e->xconfigurerequest;
 	XWindowChanges wc;
+	const int tag = MONTAG(selmon);
 
 	if ((c = wintoclient(ev->window))) {
 		if (ev->value_mask & CWBorderWidth)
 			c->bw = ev->border_width;
-		else if (c->isfloating || !selmon->lt[selmon->sellt]->arrange) {
+		else if (c->isfloating || !selmon->lts[tag]->arrange) {
 			m = c->mon;
 			if (ev->value_mask & CWX) {
 				c->oldx = c->x;
@@ -744,13 +756,15 @@ createmon(void)
 	Monitor *m;
 
 	m = ecalloc(1, sizeof(Monitor));
-	m->tagset[0] = m->tagset[1] = 1;
+	m->tagmask[0] = m->tagmask[1] = 1;
 	m->mfact = mfact;
 	m->nmaster = nmaster;
 	m->showbar = showbar;
 	m->topbar = topbar;
-	m->lt[0] = &layouts[0];
-	m->lt[1] = &layouts[1 % LENGTH(layouts)];
+
+	for (int i = 0; i < LENGTH(tags); i++) {
+		m->lts[i] = &layouts[0];
+	}
 	strncpy(m->ltsymbol, layouts[0].symbol, sizeof m->ltsymbol);
 	return m;
 }
@@ -845,17 +859,20 @@ dmenurun(const Arg *arg)
 void
 drawbar(Monitor *m)
 {
-	int x, w, sw = 0;
+	int x, w, tw = 0;
 	int boxs = drw->fonts->h / 9;
 	int boxw = drw->fonts->h / 6 + 2;
 	unsigned int i, occ = 0, urg = 0;
 	Client *c;
 
+	if (!m->showbar)
+		return;
+
 	/* draw status first so it can be overdrawn by tags later */
 	if (m == selmon) { /* status is only drawn on selected monitor */
 		drw_setscheme(drw, scheme[SchemeNorm]);
-		sw = TEXTW(stext) - lrpad + 2; /* 2px right padding */
-		drw_text(drw, m->ww - sw, 0, sw, bh, 0, stext, 0);
+		tw = TEXTW(stext) - lrpad + 2; /* 2px right padding */
+		drw_text(drw, m->ww - tw, 0, tw, bh, 0, stext, 0);
 	}
 
 	for (c = m->clients; c; c = c->next) {
@@ -866,7 +883,7 @@ drawbar(Monitor *m)
 	x = 0;
 	for (i = 0; i < LENGTH(tags); i++) {
 		w = TEXTW(tags[i]);
-		drw_setscheme(drw, scheme[m->tagset[m->seltags] & 1 << i ? SchemeSel : SchemeNorm]);
+		drw_setscheme(drw, scheme[MONTAGMASK(m) & 1 << i ? SchemeSel : SchemeNorm]);
 		drw_text(drw, x, 0, w, bh, lrpad / 2, tags[i], urg & 1 << i);
 		if (occ & 1 << i)
 			drw_rect(drw, x + boxs, boxs, boxw, boxw,
@@ -878,7 +895,7 @@ drawbar(Monitor *m)
 	drw_setscheme(drw, scheme[SchemeNorm]);
 	x = drw_text(drw, x, 0, w, bh, lrpad / 2, m->ltsymbol, 0);
 
-	if ((w = m->ww - sw - x) > bh) {
+	if ((w = m->ww - tw - x) > bh) {
 		if (m->sel) {
 			drw_setscheme(drw, scheme[m == selmon ? SchemeSel : SchemeNorm]);
 			drw_text(drw, x, 0, w, bh, lrpad / 2, m->sel->name, 0);
@@ -1005,7 +1022,7 @@ focusstack(const Arg *arg)
 {
 	Client *c = NULL, *i;
 
-	if (!selmon->sel)
+	if (!selmon->sel || (selmon->sel->isfullscreen && lockfullscreen))
 		return;
 	if (arg->i > 0) {
 		for (c = selmon->sel->next; c && !ISVISIBLE(c); c = c->next);
@@ -1197,6 +1214,7 @@ manage(Window w, XWindowAttributes *wa)
 		c->mon = selmon;
 		applyrules(c);
 	}
+	const int tag = MONTAG(c->mon);
 
 	if (c->x + WIDTH(c) > c->mon->mx + c->mon->mw)
 		c->x = c->mon->mx + c->mon->mw - WIDTH(c);
@@ -1206,7 +1224,7 @@ manage(Window w, XWindowAttributes *wa)
 	/* only fix client y-offset, if the client center might cover the bar */
 	c->y = MAX(c->y, ((c->mon->by == c->mon->my) && (c->x + (c->w / 2) >= c->mon->wx)
 		&& (c->x + (c->w / 2) < c->mon->wx + c->mon->ww)) ? bh : c->mon->my);
-	c->bw = borderpx;
+	c->bw = c->mon->lts[tag]->bw;
 
 	wc.border_width = c->bw;
 	XConfigureWindow(dpy, w, CWBorderWidth, &wc);
@@ -1312,6 +1330,8 @@ movemouse(const Arg *arg)
 		return;
 	if (!getrootptr(&x, &y))
 		return;
+
+	const int tag = MONTAG(selmon);
 	do {
 		XMaskEvent(dpy, MOUSEMASK|ExposureMask|SubstructureRedirectMask, &ev);
 		switch(ev.type) {
@@ -1335,10 +1355,10 @@ movemouse(const Arg *arg)
 				ny = selmon->wy;
 			else if (abs((selmon->wy + selmon->wh) - (ny + HEIGHT(c))) < snap)
 				ny = selmon->wy + selmon->wh - HEIGHT(c);
-			if (!c->isfloating && selmon->lt[selmon->sellt]->arrange
+			if (!c->isfloating && selmon->lts[tag]->arrange
 			&& (abs(nx - c->x) > snap || abs(ny - c->y) > snap))
 				togglefloating(NULL);
-			if (!selmon->lt[selmon->sellt]->arrange || c->isfloating)
+			if (!selmon->lts[tag]->arrange || c->isfloating)
 				resize(c, nx, ny, c->w, c->h, 1);
 			break;
 		}
@@ -1351,11 +1371,41 @@ movemouse(const Arg *arg)
 	}
 }
 
+void
+nextlayout(const Arg *arg)
+{
+	const Layout *curlt, *nextlt;
+	Arg setarg = {0};
+
+	curlt = selmon->lts[MONTAG(selmon)];
+	nextlt = &layouts[0];
+	for (int i = 0; i < LENGTH(layouts); i++) {
+		if (&layouts[i] == curlt) {
+			nextlt = &layouts[(i == (LENGTH(layouts) - 1)) ? 0 : i + 1];
+			break;
+		}
+	}
+
+	setarg.v = nextlt;
+	setlayout(&setarg);
+}
+
 Client *
 nexttiled(Client *c)
 {
 	for (; c && (c->isfloating || !ISVISIBLE(c)); c = c->next);
 	return c;
+}
+
+unsigned int
+tagmasktonum(unsigned tagmask) {
+	for (unsigned int ui = 0; ui < LENGTH(tags); ui++) {
+		if (tagmask & 1) {
+			return ui;
+		}
+		tagmask >>= 1;
+	}
+	return 0;
 }
 
 void
@@ -1466,6 +1516,8 @@ resizemouse(const Arg *arg)
 		None, cursor[CurResize]->cursor, CurrentTime) != GrabSuccess)
 		return;
 	XWarpPointer(dpy, None, c->win, 0, 0, 0, 0, c->w + c->bw - 1, c->h + c->bw - 1);
+
+	const int tag = MONTAG(selmon);
 	do {
 		XMaskEvent(dpy, MOUSEMASK|ExposureMask|SubstructureRedirectMask, &ev);
 		switch(ev.type) {
@@ -1484,11 +1536,11 @@ resizemouse(const Arg *arg)
 			if (c->mon->wx + nw >= selmon->wx && c->mon->wx + nw <= selmon->wx + selmon->ww
 			&& c->mon->wy + nh >= selmon->wy && c->mon->wy + nh <= selmon->wy + selmon->wh)
 			{
-				if (!c->isfloating && selmon->lt[selmon->sellt]->arrange
+				if (!c->isfloating && selmon->lts[tag]->arrange
 				&& (abs(nw - c->w) > snap || abs(nh - c->h) > snap))
 					togglefloating(NULL);
 			}
-			if (!selmon->lt[selmon->sellt]->arrange || c->isfloating)
+			if (!selmon->lts[tag]->arrange || c->isfloating)
 				resize(c, c->x, c->y, nw, nh, 1);
 			break;
 		}
@@ -1513,9 +1565,11 @@ restack(Monitor *m)
 	drawbar(m);
 	if (!m->sel)
 		return;
-	if (m->sel->isfloating || !m->lt[m->sellt]->arrange)
+
+	const int tag = MONTAG(m);
+	if (m->sel->isfloating || !m->lts[tag]->arrange)
 		XRaiseWindow(dpy, m->sel->win);
-	if (m->lt[m->sellt]->arrange) {
+	if (m->lts[tag]->arrange) {
 		wc.stack_mode = Below;
 		wc.sibling = m->barwin;
 		for (c = m->stack; c; c = c->snext)
@@ -1591,7 +1645,7 @@ sendmon(Client *c, Monitor *m)
 	detach(c);
 	detachstack(c);
 	c->mon = m;
-	c->tags = m->tagset[m->seltags]; /* assign tags of target monitor */
+	c->tags = MONTAGMASK(m); /* assign tags of target monitor */
 	attach(c);
 	attachstack(c);
 	focus(NULL);
@@ -1675,11 +1729,24 @@ setfullscreen(Client *c, int fullscreen)
 void
 setlayout(const Arg *arg)
 {
-	if (!arg || !arg->v || arg->v != selmon->lt[selmon->sellt])
-		selmon->sellt ^= 1;
-	if (arg && arg->v)
-		selmon->lt[selmon->sellt] = (Layout *)arg->v;
-	strncpy(selmon->ltsymbol, selmon->lt[selmon->sellt]->symbol, sizeof(selmon->ltsymbol) - 1);
+	const int tag = MONTAG(selmon);
+
+	if (!arg || !arg->v) {
+		return;
+	}
+
+	if (arg->v != selmon->lts[tag]) {
+		selmon->lts[tag] = (Layout *)arg->v;
+	}
+	strncpy(selmon->ltsymbol, selmon->lts[tag]->symbol, sizeof(selmon->ltsymbol) - 1);
+	for (Client *c = selmon->clients; c; c = c->next) {
+		if (ISVISIBLE(c)) {
+			const int oldbw = c->bw;
+			c->bw = selmon->lts[tag]->bw;
+			const int delta = (oldbw - (int)c->bw) * 2;
+			resize(c, c->x, c->y, c->w + delta, c->h + delta, 0);
+		}
+	}
 	if (selmon->sel)
 		arrange(selmon);
 	else
@@ -1692,10 +1759,10 @@ setmfact(const Arg *arg)
 {
 	float f;
 
-	if (!arg || !selmon->lt[selmon->sellt]->arrange)
+	if (!arg || !selmon->lts[MONTAG(selmon)]->arrange)
 		return;
 	f = arg->f < 1.0 ? arg->f + selmon->mfact : arg->f - 1.0;
-	if (f < 0.1 || f > 0.9)
+	if (f < 0.05 || f > 0.95)
 		return;
 	selmon->mfact = f;
 	arrange(selmon);
@@ -1808,10 +1875,12 @@ showhide(Client *c)
 {
 	if (!c)
 		return;
+
+	const int tag = MONTAG(c->mon);
 	if (ISVISIBLE(c)) {
 		/* show clients top down */
 		XMoveWindow(dpy, c->win, c->x, c->y);
-		if ((!c->mon->lt[c->mon->sellt]->arrange || c->isfloating) && !c->isfullscreen)
+		if ((!c->mon->lts[tag]->arrange || c->isfloating) && !c->isfullscreen)
 			resize(c, c->x, c->y, c->w, c->h, 0);
 		showhide(c->snext);
 	} else {
@@ -1884,11 +1953,13 @@ tile(Monitor *m)
 		if (i < m->nmaster) {
 			h = (m->wh - my) / (MIN(n, m->nmaster) - i);
 			resize(c, m->wx, m->wy + my, mw - (2*c->bw), h - (2*c->bw), 0);
-			my += HEIGHT(c);
+			if (my + HEIGHT(c) < m->wh)
+				my += HEIGHT(c);
 		} else {
 			h = (m->wh - ty) / (n - i);
 			resize(c, m->wx + mw, m->wy + ty, m->ww - mw - (2*c->bw), h - (2*c->bw), 0);
-			ty += HEIGHT(c);
+			if (ty + HEIGHT(c) < m->wh)
+				ty += HEIGHT(c);
 		}
 }
 
@@ -1925,18 +1996,6 @@ toggletag(const Arg *arg)
 	newtags = selmon->sel->tags ^ (arg->ui & TAGMASK);
 	if (newtags) {
 		selmon->sel->tags = newtags;
-		focus(NULL);
-		arrange(selmon);
-	}
-}
-
-void
-toggleview(const Arg *arg)
-{
-	unsigned int newtagset = selmon->tagset[selmon->seltags] ^ (arg->ui & TAGMASK);
-
-	if (newtagset) {
-		selmon->tagset[selmon->seltags] = newtagset;
 		focus(NULL);
 		arrange(selmon);
 	}
@@ -2201,11 +2260,19 @@ updatewmhints(Client *c)
 void
 view(const Arg *arg)
 {
-	if ((arg->ui & TAGMASK) == selmon->tagset[selmon->seltags])
+	if ((arg->ui & TAGMASK) == MONTAGMASK(selmon))
 		return;
-	selmon->seltags ^= 1; /* toggle sel tagset */
-	if (arg->ui & TAGMASK)
-		selmon->tagset[selmon->seltags] = arg->ui & TAGMASK;
+	selmon->seltag ^= 1; /* toggle sel tag */
+
+	if (arg->ui & TAGMASK) {
+		selmon->tagmask[selmon->seltag] = arg->ui & TAGMASK;
+		for (int i = 0; i < LENGTH(tags); i++) {
+			if ((1 << i) & MONTAGMASK(selmon)) { /* only one tag */
+				selmon->tagmask[selmon->seltag] = 1 << i;
+				break;
+			}
+		}
+	}
 	focus(NULL);
 	arrange(selmon);
 }
@@ -2296,7 +2363,7 @@ zoom(const Arg *arg)
 {
 	Client *c = selmon->sel;
 
-	if (!selmon->lt[selmon->sellt]->arrange
+	if (!selmon->lts[MONTAG(selmon)]->arrange
 	|| (selmon->sel && selmon->sel->isfloating))
 		return;
 	if (c == nexttiled(selmon->clients))
@@ -2308,12 +2375,19 @@ zoom(const Arg *arg)
 int
 main(int argc, char *argv[])
 {
-	pthread_t clockthread;
+	clockthreadfunc_arg *clockthread_arg = malloc(sizeof(clockthreadfunc_arg));
+	thrd_t clockthread;
 
 	if (argc == 2 && !strcmp("-v", argv[1]))
 		die("dwm-"VERSION);
 	else if (argc != 1)
 		die("usage: dwm [-v]");
+	else if (clockthread_arg == NULL)
+		die("failed to allocate memory");
+	else if (cnd_init(&clockthread_arg->cnd) != thrd_success
+			 || mtx_init(&clockthread_arg->mtx, mtx_plain) != thrd_success) {
+		die("failed to initialize data");
+	}
 	if (!setlocale(LC_CTYPE, "") || !XSupportsLocale())
 		fputs("warning: no locale support\n", stderr);
 	if(XInitThreads() == 0)
@@ -2327,14 +2401,25 @@ main(int argc, char *argv[])
 		die("pledge");
 #endif /* __OpenBSD__ */
 	scan();
-	pthread_create(&clockthread, NULL, clockthreadfunc, (void*) dpy);
+
+	if (thrd_create(&clockthread,
+					clockthreadfunc,
+					(void*)clockthread_arg) != thrd_success) {
+		die("unable to create a clock thread");
+	}
 
 	run();
 
-	XLockDisplay(dpy);
-	pthread_cancel(clockthread);
-	XLockDisplay(dpy);
-	pthread_join(clockthread, NULL);
+	mtx_lock(&clockthread_arg->mtx);
+	cnd_broadcast(&clockthread_arg->cnd);
+	mtx_unlock(&clockthread_arg->mtx);
+
+	if (thrd_join(clockthread, NULL) != thrd_success) {
+		die("unable to join to a clock thread");
+	}
+	cnd_destroy(&clockthread_arg->cnd);
+	mtx_destroy(&clockthread_arg->mtx);
+	free(clockthread_arg);
 
 	cleanup();
 	XCloseDisplay(dpy);

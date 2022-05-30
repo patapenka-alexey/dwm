@@ -9,42 +9,42 @@ static const Rule rules[] = {
 	 *	WM_NAME(STRING) = title
 	 */
 	/* class      instance    title       tags mask     isfloating   monitor */
-	{ "Gimp",     NULL,       NULL,       0,            1,           -1 },
-	{ "Vivaldi",  NULL,       NULL,       2 << 0,       0,           -1 },
+	// { "Gimp",     NULL,       NULL,       0,            1,           -1 },
+	{ "Firefox",  NULL,       NULL,       1 << 8,       0,           -1 },
 };
 
 /* layout(s) */
 static const float mfact     = 0.5; /* factor of master area size [0.05..0.95] */
 static const int nmaster     = 1;    /* number of clients in master area */
 static const int resizehints = 0;    /* 1 means respect size hints in tiled resizals */
+static const int lockfullscreen = 1; /* 1 will force focus on the fullscreen window */
 
 static const Layout layouts[] = {
-	/* symbol     arrange function */
-	{ "[]=",      tile }, /* first entry is default */
-	{ "[M]",      monocle },
-	{ "><>",      NULL },    /* no layout function means floating behavior */
+	/* symbol     border size     arrange function */
+    { "[]=",      borderpx,       tile },
+	{ "[M]",      0,              monocle }, /* first entry is default */
+};
+
+static const Layout layout_float = {
+	"><>",        borderpx,       NULL    /* no layout function means floating behavior */
 };
 
 /* key definitions */
-#define MODKEY Mod4Mask /* Mod1Mask */
+#define MODKEY Mod4Mask
 #define WINKEY Mod4Mask
 
 #define TAGKEYS(KEY,TAG) \
 	{ WINKEY,                       KEY,      view,           {.ui = 1 << TAG} }, \
-	{ WINKEY|ControlMask,           KEY,      toggleview,     {.ui = 1 << TAG} }, \
 	{ WINKEY|ShiftMask,             KEY,      tag,            {.ui = 1 << TAG} }, \
 	{ WINKEY|ControlMask|ShiftMask, KEY,      toggletag,      {.ui = 1 << TAG} },
 
-/* helper for spawning shell commands in the pre dwm-5.0 fashion */
-#define SHCMD(cmd) { .v = (const char*[]){ "/bin/sh", "-c", cmd, NULL } }
-
 /* commands */
-static const char *termcmd[]  = { "gnome-terminal", NULL };
+static const char *termcmd[]  = { "mate-terminal", NULL };
 static const char *firefoxcmd[] = { "vivaldi", NULL};
-static const char *cmdprintscreen[]  = { "scrot", "/home/ozi/images/screenshots/%Y-%m-%d-%s.jpg", NULL };
+static const char *cmdprintscreen[]  = { "scrot", "/home/kpa/Pictures/screenshots/%Y-%m-%d-%s.jpg", NULL };
 
 static const char **autostart[] = {
-	termcmd,firefoxcmd,
+	termcmd,
 };
 
 static Key keys[] = {
@@ -60,11 +60,13 @@ static Key keys[] = {
 	{ MODKEY,                       XK_h,      setmfact,       {.f = -0.05} },
 	{ MODKEY,                       XK_l,      setmfact,       {.f = +0.05} },
 	{ MODKEY,                       XK_Return, zoom,           {0} },
-	{ MODKEY,                       XK_j,      view,           {0} },
+    { MODKEY,                       XK_j,      focusstack,     {.i = +1 } },
+	{ MODKEY,                       XK_k,      focusstack,     {.i = -1 } },
+	//{ MODKEY,                       XK_j,      view,           {0} },
 	{ WINKEY,                       XK_q,      killclient,     {0} },
-	{ MODKEY,                       XK_t,      setlayout,      {.v = &layouts[1]} },
-	{ MODKEY,                       XK_f,      setlayout,      {.v = &layouts[2]} },
-	{ MODKEY,                       XK_m,      setlayout,      {.v = &layouts[0]} },
+	{ MODKEY|ShiftMask,             XK_t,      setlayout,      {.v = &layouts[1]} },
+	//{ MODKEY,                       XK_f,      setlayout,      {.v = &layout_float} },
+	{ MODKEY|ShiftMask,             XK_m,      setlayout,      {.v = &layouts[0]} },
 	{ MODKEY,                       XK_space,  setlayout,      {0} },
 	{ MODKEY|ShiftMask,             XK_space,  togglefloating, {0} },
 	{ MODKEY,                       XK_0,      view,           {.ui = ~0 } },
@@ -89,15 +91,14 @@ static Key keys[] = {
 /* click can be ClkTagBar, ClkLtSymbol, ClkStatusText, ClkWinTitle, ClkClientWin, or ClkRootWin */
 static Button buttons[] = {
 	/* click                event mask      button          function        argument */
-	{ ClkLtSymbol,          0,              Button1,        setlayout,      {0} },
-	{ ClkLtSymbol,          0,              Button3,        setlayout,      {.v = &layouts[2]} },
+	{ ClkLtSymbol,          0,              Button1,        nextlayout,     {0} },
+	{ ClkLtSymbol,          0,              Button3,        setlayout,      {.v = &layout_float} },
 	{ ClkWinTitle,          0,              Button2,        zoom,           {0} },
 	{ ClkStatusText,        0,              Button2,        spawn,          {.v = termcmd } },
 	{ ClkClientWin,         MODKEY,         Button1,        movemouse,      {0} },
 	{ ClkClientWin,         MODKEY,         Button2,        togglefloating, {0} },
 	{ ClkClientWin,         MODKEY,         Button3,        resizemouse,    {0} },
 	{ ClkTagBar,            0,              Button1,        view,           {0} },
-	{ ClkTagBar,            0,              Button3,        toggleview,     {0} },
 	{ ClkTagBar,            MODKEY,         Button1,        tag,            {0} },
 	{ ClkTagBar,            MODKEY,         Button3,        toggletag,      {0} },
 };

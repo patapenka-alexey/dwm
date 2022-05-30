@@ -555,7 +555,7 @@ readstdin(void)
 		if ((p = strchr(execlist[i], '\n')))
 			*p = '\0';
 		if (!(items[i].text = execlist[i]))
-			die("cannot strdup %u bytes:", strlen(execlist[i]) + 1);
+			die("cannot strdup %u bytes:", (execlist[i] ? strlen(execlist[i]) : 0) + 1);
 		items[i].out = 0;
 		drw_font_getexts(drw->fonts, execlist[i], strlen(execlist[i]), &tmpmax, NULL);
 		if (tmpmax > inputw) {

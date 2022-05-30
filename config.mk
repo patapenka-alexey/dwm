@@ -1,13 +1,13 @@
 # dwm version
-VERSION = 6.2
+VERSION = 6.3
 
 # Customize below to fit your system
 
 # paths
-PREFIX = /usr/local
+PREFIX = /usr/
 MANPREFIX = ${PREFIX}/share/man
 
-X11INC = /usr/include
+X11INC = /usr/include/
 X11LIB = /usr/lib
 
 # freetype
