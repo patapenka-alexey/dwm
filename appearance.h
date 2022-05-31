@@ -11,8 +11,8 @@ static const int topbar             = 1;        /* 0 means bottom bar */
  * for example: " /?\"&[]"
  */
 static const char menuworddelimiters[] = " ";
-static const char *fonts[]          = { "Consolas:size=12" };
-static const char dmenufont[]       = "Consolas:size=12";
+static const char *fonts[]          = { "Consolas:size=13" };
+static const char dmenufont[]       = "Consolas:size=13";
 static const char fg_norm[]         = "#f8f8f2";
 static const char bg_norm[]         = "#282a36";
 static const char border_norm[]     = "#44475a";

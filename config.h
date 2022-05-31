@@ -41,7 +41,7 @@ static const Layout layout_float = {
 /* commands */
 static const char *termcmd[]  = { "mate-terminal", NULL };
 static const char *firefoxcmd[] = { "vivaldi", NULL};
-static const char *cmdprintscreen[]  = { "scrot", "/home/kpa/Pictures/screenshots/%Y-%m-%d-%s.jpg", NULL };
+static const char *cmdprintscreen[]  = { "scrot", "~/Pictures/screenshots/%Y-%m-%d-%s.jpg", NULL };
 
 static const char **autostart[] = {
 	termcmd,
