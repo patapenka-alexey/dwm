@@ -23,6 +23,7 @@ static const char fg_out[]          = "#000000";
 static const char bg_out[]          = "#00ffff";
 static const char border_out[]      = "#000000";
 
+/* original */
 static const char *colors[SchemeLast][3] = {
 	/*     fg         bg       */
 	[SchemeNorm] = { fg_norm, bg_norm, border_norm },
