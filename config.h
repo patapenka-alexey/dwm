@@ -11,6 +11,7 @@ static const Rule rules[] = {
 	/* class      instance    title       tags mask     isfloating   monitor */
 	// { "Gimp",     NULL,       NULL,       0,            1,           -1 },
 	{ "Firefox",  NULL,       NULL,       1 << 8,       0,           -1 },
+	{ "vivaldi",  NULL,       NULL,       1 << 8,       0,           -1 },
 };
 
 /* layout(s) */
@@ -21,7 +22,7 @@ static const int lockfullscreen = 1; /* 1 will force focus on the fullscreen win
 
 static const Layout layouts[] = {
 	/* symbol     border size     arrange function */
-    { "[]=",      borderpx,       tile },
+	{ "[]=",      borderpx,       tile },
 	{ "[M]",      0,              monocle }, /* first entry is default */
 };
 
@@ -40,7 +41,8 @@ static const Layout layout_float = {
 
 /* commands */
 static const char *termcmd[]  = { "mate-terminal", NULL };
-static const char *firefoxcmd[] = { "vivaldi", NULL};
+static const char *firefoxcmd[] = { "firefox", NULL};
+static const char *vivaldicmd[] = { "vivaldi", NULL};
 static const char *cmdprintscreen[]  = { "scrot", "~/Pictures/screenshots/%Y-%m-%d-%s.jpg", NULL };
 
 static const char **autostart[] = {
@@ -52,6 +54,7 @@ static Key keys[] = {
 	{ MODKEY,                       XK_p,      dmenurun,       {0} },
 	{ WINKEY,                       XK_t,      spawn,          {.v = termcmd } },
 	{ WINKEY,                       XK_f,      spawn,          {.v = firefoxcmd } },
+	{ WINKEY,			XK_v,      spawn,          {.v = vivaldicmd } },
 	{ 0,                            XK_Print,  spawn,          {.v = cmdprintscreen } },
 	{ MODKEY,                       XK_b,      togglebar,      {0} },
 	{ MODKEY,                       XK_Tab,    focusstack,     {.i = +1 } },
