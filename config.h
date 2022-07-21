@@ -1,5 +1,17 @@
 /* See LICENSE file for copyright and license details. */
 
+// sound
+#include <X11/XF86keysym.h>
+/* commands */
+static const char *upvol[] = { "amixer", "set", "Master", "2+", NULL };
+static const char *downvol[] = { "amixer", "set", "Master", "2-", NULL };
+static const char *mute[] = { "amixer", "-q", "set", "Master", "toggle", NULL };
+
+// for pulse compatible //
+// static const char *upvol[] = { "amixer", "-q", "sset", "Master", "1%+", NULL };
+// static const char *downvol[] = { "amixer", "-q", "sset", "Master", "1%-", NULL };
+// static const char *mute[] = { "amixer", "-q", "-D", "pulse", "sset", "Master", "toggle", NULL };
+
 /* tagging */
 static const char *tags[] = { "1", "2", "3", "4", "5", "6", "7", "8", "9" };
 
@@ -22,8 +34,8 @@ static const int lockfullscreen = 1; /* 1 will force focus on the fullscreen win
 
 static const Layout layouts[] = {
 	/* symbol     border size     arrange function */
-	{ "[]=",      borderpx,       tile },
 	{ "[M]",      0,              monocle }, /* first entry is default */
+	{ "[]=",      borderpx,       tile },
 };
 
 static const Layout layout_float = {
@@ -51,6 +63,9 @@ static const char **autostart[] = {
 
 static Key keys[] = {
 	/* modifier                     key        function        argument */
+	{ 0,              XF86XK_AudioRaiseVolume, spawn,          {.v = upvol } },
+	{ 0,              XF86XK_AudioLowerVolume, spawn,          {.v = downvol } },
+	{ 0,              XF86XK_AudioMute,        spawn,          {.v = mute } },
 	{ MODKEY,                       XK_p,      dmenurun,       {0} },
 	{ WINKEY,                       XK_t,      spawn,          {.v = termcmd } },
 	{ WINKEY,                       XK_f,      spawn,          {.v = firefoxcmd } },
