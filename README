@@ -48,3 +48,8 @@ Configuration
 -------------
 The configuration of dwm is done by creating a custom config.h
 and (re)compiling the source code.
+
+
+Additional settings
+-------------------
+To change GTK-theme - install 'lxappearance'
