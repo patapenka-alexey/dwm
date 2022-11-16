@@ -18,6 +18,8 @@ necessary as root):
 
     make clean install
 
+    cp scripts/dwm.desktop /usr/share/xsessions/
+
 
 Running dwm
 -----------
