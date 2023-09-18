@@ -45,6 +45,7 @@ static const Layout layout_float = {
 /* key definitions */
 #define MODKEY Mod4Mask
 #define WINKEY Mod4Mask
+#define ALTKEY Mod1Mask
 
 #define TAGKEYS(KEY,TAG) \
 	{ WINKEY,                       KEY,      view,           {.ui = 1 << TAG} }, \
@@ -72,7 +73,7 @@ static Key keys[] = {
 	{ WINKEY,			XK_v,      spawn,          {.v = vivaldicmd } },
 	{ 0,                            XK_Print,  spawn,          {.v = cmdprintscreen } },
 	{ MODKEY,                       XK_b,      togglebar,      {0} },
-	{ MODKEY,                       XK_Tab,    focusstack,     {.i = +1 } },
+	{ ALTKEY,                       XK_Tab,    focusstack,     {.i = +1 } },
 	{ MODKEY,                       XK_h,      setmfact,       {.f = -0.05} },
 	{ MODKEY,                       XK_l,      setmfact,       {.f = +0.05} },
 	{ MODKEY,                       XK_Return, zoom,           {0} },
