@@ -1,0 +1,19 @@
+sudo apt install xrdp
+# make sure that in output "ssl_gen_key_xrdp1 ok"
+sudo adduser xrdp ssl-cert
+sudo systemctl enable xrdp
+sudo systemctl restart xrdp
+sudo systemctl status xrdp
+sudo ufw allow from 192.168.2.0/24 to any port 3389
+sudo ufw allow 3389
+
+
+# in case of black screen update
+# /etc/xrdp/startwm.sh
+# add 
+# 'unset DBUS_SESSION_BUS_ADDRESS'
+# 'unset XDG_RUNTIME_DIR'
+# before line
+# 'test –x /etc/X11/Xsession && exec /etc/X11/Xsession'
+# and restart xrdp
+# sudo systemctl restart xrdp
