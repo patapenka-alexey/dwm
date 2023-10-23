@@ -2,8 +2,7 @@ connect:
 openvpn3 session-start --config /home/ap/programs/visutech.ovpn
 
 disconnect:
-openvpn3 sessions-list
-openvpn3 session-manage --session-path /net/openvpn/v3/sessions/ --disconnect
+openvpn3 session-manage --session-path $(openvpn3 sessions-list | grep Path | awk '{print $2}') --disconnect
 
 Solution found. In the Windows remote desktop client, there is an option to enable all sorts of eye candy.
 In the Remote Desktop Connection dialog, click Show Options, navigate to the Experience tab and select 
