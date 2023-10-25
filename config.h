@@ -70,7 +70,7 @@ static Key keys[] = {
 	{ MODKEY,                       XK_p,      dmenurun,       {0} },
 	{ WINKEY,                       XK_t,      spawn,          {.v = termcmd } },
 	{ WINKEY,                       XK_f,      spawn,          {.v = firefoxcmd } },
-	{ WINKEY,			XK_v,      spawn,          {.v = vivaldicmd } },
+	{ WINKEY,                       XK_v,      spawn,          {.v = vivaldicmd } },
 	{ 0,                            XK_Print,  spawn,          {.v = cmdprintscreen } },
 	{ MODKEY,                       XK_b,      togglebar,      {0} },
 	{ ALTKEY,                       XK_Tab,    focusstack,     {.i = +1 } },

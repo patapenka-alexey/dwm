@@ -27,8 +27,8 @@ static const char border_out[]      = "#000000";
 static const char *colors[SchemeLast][3] = {
 	/*     fg         bg       */
 	[SchemeNorm] = { fg_norm, bg_norm, border_norm },
-	[SchemeSel] = { fg_sel, bg_sel, border_sel },
-	[SchemeOut] = { fg_out, bg_out, border_out },
+	[SchemeSel] =  { fg_sel,  bg_sel,  border_sel  },
+	[SchemeOut] =  { fg_out,  bg_out,  border_out  },
 };
 
 #endif /* APPEARANCE_H */
