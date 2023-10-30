@@ -1,4 +1,5 @@
 connect:
+openvpn /home/ap/programs/visutech.ovpn
 openvpn3 session-start --config /home/ap/programs/visutech.ovpn
 
 disconnect:
