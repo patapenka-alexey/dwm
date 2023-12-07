@@ -60,6 +60,7 @@ static const char *cmdprintscreen[]  = { "scrot", "~/Pictures/screenshots/%Y-%m-
 
 static const char **autostart[] = {
 	termcmd,
+	// "sh", "-c", "while :; do dwmstatus.sh -; sleep 60; done", NULL,
 };
 
 static Key keys[] = {

@@ -1,0 +1,70 @@
+для x200i
+https://thinkwiki.de/Thinkfan     - ОСНОВНАЯ НА НЕМЕЦКОМ
+http://ubuntu.fliplinux.com/151.html
+https://losst.ru/upravlenie-kulerom-linux
+
+sudo apt-get install lm-sensors
+
+sudo sensors-detect
+"Do you want to add these lines automatically to /etc/modules? (yes/NO)" ответить ДА!!!!!!!!!!!
+
+добавляем сервис в автозагрузку:
+sudo systemctl enable lm_sensors default
+Запускаем:
+sudo systemctl start lm_sensors      
+Показания смотрим так
+sensors    
+
+
+Устанавливаем thinkfan
+sudo apt-get install thinkfan
+
+echo "options thinkpad_acpi fan_control=1" | sudo tee /etc/modprobe.d/thinkfan.conf
+
+sudo systemctl start module-init-tools
+
+лезем под рутом в /etc/default/thinkfan 
+и добавляем строку START=yes
+
+systemctl enable thinkfan.service - сервис в автозагрузку
+
+под рутом лезем в /etc/thinkfan.conf
+заменяем строки с датчиками на
+hwmon /sys/devices/platform/coretemp.0/hwmon/hwmon1/temp2_input 
+hwmon /sys/devices/platform/coretemp.0/hwmon/hwmon1/temp1_input 
+и настройки переключения скоростей кулера
+(0,	0,	60)
+(1,	57,	65)
+(2,	59,	66)
+(3,	64,	75)
+(4,	68,	77)
+(5,	71,	78)
+(7,	73,	32767)
+version 2
+(0,	0,	60)
+(1,	57,	65)
+(2,	60,	70)
+(3,	65,	75)
+(4,	70,	77)
+(5,	75,	83)
+(7,	80,	32767)
+
+
+на моем T420s работает очень хорошо
+(0,	0,	62)
+(1,	0,	62)
+(2,	56,	68)
+(3,	62,	70)
+(4,	65,	74)
+(5,	69,	82)
+(7,	75,	32767)
+
+
+
+sudo systemctl start thinkfan   - запускаем
+sudo systemctl stop thinkfan - выключаем
+
+
+
+
+
