@@ -4,7 +4,7 @@
 
 echo Pass value of the Speed as script parameter, or default value '-0.35' will be applied
 
-device=$(xinput | grep TrackPoint)
+devices=$(xinput | grep -e 'TrackPoint' -e 'Keyboard Mouse')
 
 value=-0.35
 
@@ -13,14 +13,16 @@ if [ "x$1" != "x" ]; then
 fi
 echo Apply value "$value"
 
-for var in $device
+for device in $devices
 do
-    var_id=${var:0:2}
-    if [ "x$var_id" = "xid" ]; then
-        device_number=${var:3:2}
-        echo TrackPoint device number: $device_number
+    device_id=${device:0:2}
+    if [ "x$device_id" = "xid" ]; then
+        device_number=${device:3:2}
+        echo $device device number: $device_number
         xinput --set-prop $device_number 'libinput Accel Speed' $value
         echo Set 'libinput Accel Speed' to $value
-        break
+        continue
     fi
 done
+
+# for Tex Shinobi it could be "USB-HID Keyboard Mouse"
