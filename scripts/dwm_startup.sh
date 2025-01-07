@@ -6,7 +6,9 @@
 # $ exec /usr/local/bin/dwm_startup.sh
 
 # feh --bs-scale ~/Pictures/bg.png
-setxkbmap -model pc105 -layout us,ru -option grp:alt_shift_toggle
+# setxkbmap -model pc105 -layout us,ru -option grp:alt_shift_toggle
+# t14 g5 should be used without -model flag
+setxkbmap -layout us,ru -option grp:alt_shift_toggle
 # dwmblocks &
 
 while true; do
