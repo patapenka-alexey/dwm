@@ -26,11 +26,17 @@ clean:
 	rm -f dwm stest ${OBJ}
 
 install: all
-	mkdir -p ${DESTDIR}${PREFIX}/bin
-	cp -f dwm ${DESTDIR}${PREFIX}/bin
-	chmod 755 ${DESTDIR}${PREFIX}/bin/dwm
+	mkdir -p /usr/local/bin
+	cp -f dwm /usr/local/bin
+	chmod 755 /usr/local/bin/dwm
+	cp -f configs/dwm.desktop /usr/share/xsessions/
+	chmod 644 /usr/share/xsessions/dwm.desktop
+	cp -f scripts/dwm_startup.sh /usr/local/bin/dwm_startup.sh
+	chmod +x /usr/local/bin/dwm_startup.sh
 
 uninstall:
-	rm -f ${DESTDIR}${PREFIX}/bin/dwm
+	rm -f /usr/local/bin/dwm
+	rm -f /usr/local/bin/dwm_startup.sh
+	rm -f /usr/share/xsessions/dwm.desktop
 
 .PHONY: all options clean dist install uninstall
