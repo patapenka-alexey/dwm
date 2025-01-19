@@ -1,14 +1,19 @@
 [global_config]
+  window_state = maximise
+  inactive_color_offset = 0.8571428571428571
   enabled_plugins = LaunchpadBugURLHandler, LaunchpadCodeURLHandler, APTURLHandler, SaveLastSessionLayout
+  clear_select_on_copy = True
 [keybindings]
-  split_vert = <Primary><Shift>e
+  split_horiz = <Primary><Alt>d
+  split_vert = <Primary><Alt>r
 [profiles]
   [[default]]
-    allow_bold = False
+    icon_bell = False
     background_color = "#1e2127"
     font = Consolas 10
     foreground_color = "#ffffff"
     show_titlebar = False
+    scrollback_infinite = True
     palette = "#000000:#e06c75:#98c379:#d19a66:#61afef:#c678dd:#56b6c2:#abb2bf:#5c6370:#e06c75:#98c379:#d19a66:#61afef:#c678dd:#56b6c2:#fffefe"
     use_system_font = False
     copy_on_selection = True
