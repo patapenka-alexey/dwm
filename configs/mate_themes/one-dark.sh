@@ -22,19 +22,13 @@ COLOR_16="#FFFEFE"
 BACKGROUND_COLOR="#1E2127"
 FOREGROUND_COLOR="#5C6370"
 CURSOR_COLOR="#5C6370"
-PROFILE_NAME="One Dark"
+PROFILE_NAME="one-dark"
 # =============================================================== #
-
-
-
-
-
-
 
 # =============================================================== #
 # | Apply Colors
 # =============================================================== #
 PALETTE_VALUE="'$COLOR_01:$COLOR_02:$COLOR_03:$COLOR_04:$COLOR_05:$COLOR_06:$COLOR_07:$COLOR_08:$COLOR_09:$COLOR_10:$COLOR_11:$COLOR_12:$COLOR_13:$COLOR_14:$COLOR_15:$COLOR_16'" 
-dconf write /org/mate/terminal/profiles/default/palette $PALETTE_VALUE
-dconf write /org/mate/terminal/profiles/default/foreground-color \'$FOREGROUND_COLOR\'
-dconf write /org/mate/terminal/profiles/default/background-color \'$BACKGROUND_COLOR\'
+dconf write /org/mate/terminal/profiles/one-dark/palette $PALETTE_VALUE
+dconf write /org/mate/terminal/profiles/one-dark/foreground-color \'$FOREGROUND_COLOR\'
+dconf write /org/mate/terminal/profiles/one-dark/background-color \'$BACKGROUND_COLOR\'
