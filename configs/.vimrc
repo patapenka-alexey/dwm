@@ -33,9 +33,22 @@ map <C-v> pi
 imap <C-v> <Esc>pi
 imap <C-z> <Esc>ui
 
+" exit from 'insert' mode by jj/JJ
+inoremap jj <esc>
+inoremap JJ <esc>
+" exit from 'command' mode by jj/JJ
+cnoremap jj <C-c>
+cnoremap JJ <C-c>
+
+" move between windows
+map <C-j> <C-W>j
+map <C-k> <C-W>k
+map <C-h> <C-W>h
+map <C-l> <C-W>l
+
 " arrows can be used for selection
-vmap <Up> k
-vmap <Down> j
-vmap <Left> h
-vmap <Right> l
+"vmap <Up> k
+"vmap <Down> j
+"vmap <Left> h
+"vmap <Right> l
 
