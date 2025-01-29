@@ -1,5 +1,5 @@
 {
-    "workbench.colorTheme": "One Dark Pro Darker",
+    "workbench.colorTheme": "Default Light+",
     "editor.fontFamily": "Consolas, 'Droid Sans Mono', 'monospace', monospace",
     "editor.fontSize": 13,
     "terminal.integrated.fontSize": 13,
@@ -8,5 +8,12 @@
     "workbench.tree.indent": 15,
     "editor.inlayHints.fontFamily": "Consolas",
     "editor.fontLigatures": false,
-    "go.testFlags": [ "-v", "-count=1" ],
+    "go.testFlags": [
+        "-v",
+        "-count=1"
+    ],
+    "editor.minimap.enabled": false,
+    "editor.renderWhitespace": "all",
+    "terminal.integrated.fontWeight": "normal",
+    "terminal.integrated.fontWeightBold": "normal",
 }

@@ -7,3 +7,4 @@ export BLU_DEVICE="FC:36:FE:25:18:08"
 alias headon="bluetoothctl connect $BLU_DEVICE"
 alias headoff="bluetoothctl disconnect $BLU_DEVICE"
 alias headreset="bluetoothctl power off && bluetoothctl power on"
+
