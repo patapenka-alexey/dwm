@@ -1,0 +1,8 @@
+#!/usr/bin/env bash
+
+sudo apt-get remove moc
+
+sudo rm -rf /usr/share/moc/themes
+sudo rm -rf /usr/share/moc
+
+rm -rf ~/.moc/
