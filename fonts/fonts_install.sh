@@ -1,13 +1,15 @@
-#!/bin/bash -ex
+#!/usr/bin/env bash
+
+SCRIPT_DIR="$( dirname -- "$BASH_SOURCE"; )";
 
 DIR="$HOME/.local/share/fonts"
 
 if [ ! -d "$DIR" ]; then
   echo Local fonts dir do not exist. Create $DIR
-  mkdir "$DIR"
+  mkdir -p "$DIR"
 fi
 
-cp ../fonts/consola*.ttf $DIR/
+cp $SCRIPT_DIR/consola*.ttf $DIR/
 
 fc-cache -f -v
 
