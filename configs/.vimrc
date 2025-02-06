@@ -1,3 +1,6 @@
+" shift+Z+Z = save and exit
+" shift+Z+Q = exit without saving file
+
 "source $VIMRUNTIME/mswin.vim
 "behave mswin
 
