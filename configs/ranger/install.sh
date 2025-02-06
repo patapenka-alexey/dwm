@@ -1,5 +1,8 @@
 #!/usr/bin/env bash
 
+# to highlight code in internal viewer
+sudo apt-get install highlight
+
 SCRIPT_DIR="$( dirname -- "$BASH_SOURCE"; )";
 
 RANGER_DIR="$HOME/.config/ranger/"
