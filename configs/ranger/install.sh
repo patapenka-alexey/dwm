@@ -3,6 +3,13 @@
 # to highlight code in internal viewer
 sudo apt-get install highlight
 
+# Ranger configures highlighting in `scope.sh`.
+# To use a specific theme, the HIGHLIGHT_STYLE variable should be set, for example:
+# /usr/share/highlight/themes/
+# ekvoli zmrok monokai candy base16/onedark base16/gruvbox-dark-medium
+# export HIGHLIGHT_STYLE=ekvoli
+
+
 SCRIPT_DIR="$( dirname -- "$BASH_SOURCE"; )";
 
 RANGER_DIR="$HOME/.config/ranger/"
