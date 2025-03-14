@@ -41,22 +41,29 @@
 tp_fan /proc/acpi/ibm/fan
 #tp_thermal /proc/acpi/ibm/thermal (0, 10, 15, 2, 10, 5, 0, 3, 0, 3)
 
-hwmon /sys/devices/platform/coretemp.0/hwmon/hwmon6/temp6_input
-hwmon /sys/devices/platform/coretemp.0/hwmon/hwmon6/temp23_input
-hwmon /sys/devices/platform/coretemp.0/hwmon/hwmon6/temp10_input
-hwmon /sys/devices/platform/coretemp.0/hwmon/hwmon6/temp20_input
-hwmon /sys/devices/platform/coretemp.0/hwmon/hwmon6/temp14_input
-hwmon /sys/devices/platform/coretemp.0/hwmon/hwmon6/temp24_input
-hwmon /sys/devices/platform/coretemp.0/hwmon/hwmon6/temp18_input
-hwmon /sys/devices/platform/coretemp.0/hwmon/hwmon6/temp21_input
-hwmon /sys/devices/platform/coretemp.0/hwmon/hwmon6/temp1_input
-hwmon /sys/devices/platform/coretemp.0/hwmon/hwmon6/temp25_input
-hwmon /sys/devices/platform/coretemp.0/hwmon/hwmon6/temp19_input
-hwmon /sys/devices/platform/coretemp.0/hwmon/hwmon6/temp22_input
-hwmon /sys/devices/platform/coretemp.0/hwmon/hwmon6/temp2_input
+# the difference between PCs - number of the devices into 
+# /sys/devices/platform/coretemp.0/hwmon/
 
+# thinkpad x220i
+hwmon /sys/devices/platform/coretemp.0/hwmon/hwmon3/temp2_input
+hwmon /sys/devices/platform/coretemp.0/hwmon/hwmon3/temp1_input
 
+# thinkpad t14 g5
+# hwmon /sys/devices/platform/coretemp.0/hwmon/hwmon6/temp6_input
+# hwmon /sys/devices/platform/coretemp.0/hwmon/hwmon6/temp23_input
+# hwmon /sys/devices/platform/coretemp.0/hwmon/hwmon6/temp10_input
+# hwmon /sys/devices/platform/coretemp.0/hwmon/hwmon6/temp20_input
+# hwmon /sys/devices/platform/coretemp.0/hwmon/hwmon6/temp14_input
+# hwmon /sys/devices/platform/coretemp.0/hwmon/hwmon6/temp24_input
+# hwmon /sys/devices/platform/coretemp.0/hwmon/hwmon6/temp18_input
+# hwmon /sys/devices/platform/coretemp.0/hwmon/hwmon6/temp21_input
+# hwmon /sys/devices/platform/coretemp.0/hwmon/hwmon6/temp1_input
+# hwmon /sys/devices/platform/coretemp.0/hwmon/hwmon6/temp25_input
+# hwmon /sys/devices/platform/coretemp.0/hwmon/hwmon6/temp19_input
+# hwmon /sys/devices/platform/coretemp.0/hwmon/hwmon6/temp22_input
+# hwmon /sys/devices/platform/coretemp.0/hwmon/hwmon6/temp2_input
 
+# quite
 (0,	0,	60)
 (1,	57,	65)
 (2,	60,	70)
@@ -64,3 +71,12 @@ hwmon /sys/devices/platform/coretemp.0/hwmon/hwmon6/temp2_input
 (4,	70,	77)
 (5,	75,	83)
 (7,	80,	32767)
+
+# forced
+# (0,	0,	50)
+# (1,	48,	55)
+# (2,	53,	60)
+# (3,	58,	65)
+# (4,	63,	70)
+# (5,	68,	75)
+# (7,	73,	32767)
