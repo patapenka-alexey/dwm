@@ -1,6 +1,3 @@
-" shift+Z+Z = save and exit
-" shift+Z+Q = exit without saving file
-
 "source $VIMRUNTIME/mswin.vim
 "behave mswin
 
@@ -16,7 +13,7 @@ set expandtab               " converts tabs to white space
 set shiftwidth=4            " width for autoindents
 set autoindent              " indent a new line the same amount as the line just typed
 set number                  " add line numbers
-set relativenumber
+" set relativenumber
 set wildmode=longest,list   " get bash-like tab completions
 filetype plugin indent on   "allow auto-indenting depending on file type
 syntax on                   " syntax highlighting
@@ -32,6 +29,10 @@ colorscheme onedark
 " problems with Ctrl+C Ctrl+V on some terminals
 vmap <C-c> y<Esc>i
 vmap <C-x> d<Esc>i
+" save file by Ctrl+S
+nmap <C-s> :w<CR>
+imap <C-s> <Esc>:w<CR>a
+
 map <C-v> pi
 imap <C-v> <Esc>pi
 imap <C-z> <Esc>ui
