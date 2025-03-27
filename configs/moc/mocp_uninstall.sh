@@ -6,4 +6,4 @@ sudo apt-get remove moc
 sudo rm -rf /usr/share/moc/themes
 sudo rm -rf /usr/share/moc
 
-rm -rf ~/.moc/
+rm -rf $HOME/.moc/
