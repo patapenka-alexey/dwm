@@ -14,7 +14,7 @@
     icon_bell = False
     background_color = "#1e2127"
     font = Consolas 10
-    foreground_color = "#5C6370"
+    foreground_color = "#fffefe"
     show_titlebar = False
     scrollback_infinite = True
     palette = "#000000:#e06c75:#98c379:#d19a66:#61afef:#c678dd:#56b6c2:#abb2bf:#5c6370:#e06c75:#98c379:#d19a66:#61afef:#c678dd:#56b6c2:#fffefe"
