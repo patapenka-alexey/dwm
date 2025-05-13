@@ -17,10 +17,11 @@
     "terminal.integrated.fontWeight": "normal",
     "terminal.integrated.fontWeightBold": "normal",
     "terminal.integrated.scrollback": 1000000,
-    "update.mode": "none",
+    "update.mode": "manual",
     "update.showReleaseNotes": false,
-    "window.menuBarVisibility": "toggle",
     "workbench.colorTheme": "Default Light+",
     "workbench.editor.titleScrollbarSizing": "large",
     "workbench.tree.indent": 15,
+    "debug.console.fontSize": 13,
+    "debug.console.fontFamily": "Consolas",
 }
