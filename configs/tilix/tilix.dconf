@@ -1,0 +1,37 @@
+[/]
+copy-on-select=false
+paste-strip-trailing-whitespace=true
+prompt-on-close=true
+prompt-on-new-session=false
+quake-specific-monitor=0
+recent-session-files=['/home/ap/temp/tilix_base_window.json', '/home/ap/temp/tilix_cf221_window.json', '/home/ap/.config/tilix/sessions/work.json']
+sidebar-on-right=false
+terminal-title-style='small'
+theme-variant='light'
+use-tabs=true
+warn-vte-config-issue=false
+window-save-state=true
+window-state=43908
+window-style='normal'
+
+[keybindings]
+terminal-maximize='<Primary><Shift>m'
+
+[profiles/2b7c4080-0ddd-46c5-8f23-563fd3ba789d]
+background-color='#282C34'
+badge-color='#AC7EA8'
+badge-color-set=false
+bold-color-set=false
+bold-is-bright=true
+cursor-blink-mode='on'
+cursor-colors-set=false
+font='Consolas 10'
+foreground-color='#FFFFFFFFFFFF'
+highlight-colors-set=false
+login-shell=false
+palette=['#000000', '#E06C75', '#98C379', '#D19A66', '#61AEEE', '#C678DD', '#56B6C2', '#ABB2BF', '#5C6370', '#E06C75', '#98C379', '#D19A66', '#62AFEE', '#C678DD', '#56B6C2', '#FFFFFF']
+scrollback-lines=300000
+use-custom-command=false
+use-system-font=false
+use-theme-colors=false
+visible-name='Default'
